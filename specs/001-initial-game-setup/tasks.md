@@ -676,7 +676,7 @@ supabase/            # Database migrations
 
 ### TV Display Pages (T047-T051)
 
-- [ ] **T047** [P] Update TVLobbyPage in `src/pages/tv/TVLobbyPage.tsx`
+- [X] **T047** [P] Update TVLobbyPage in `src/pages/tv/TVLobbyPage.tsx`
   - Replace mock data with real game data
   - Display QR code for player join
   - Show game code prominently
@@ -691,7 +691,7 @@ supabase/            # Database migrations
   - Highlight correct answer when revealed
   - Auto-advances when host advances (needs T055-T058)
 
-- [ ] **T049** [P] Update TVScoresPage in `src/pages/tv/TVScoresPage.tsx`
+- [X] **T049** [P] Update TVScoresPage in `src/pages/tv/TVScoresPage.tsx`
   - Replace mock data with getGameScores() call
   - Display leaderboard with rankings
   - Show score, accuracy, and cumulative time
@@ -859,15 +859,16 @@ supabase/            # Database migrations
 
 ## Progress Summary
 
-**Completed**: 38/74 tasks (51.4%)
+**Completed**: 40/74 tasks (54.1%)
 - ✅ Phase 3.1: Setup (8/8) - Complete
 - ✅ Phase 3.2: Database migrations (12/12) - Complete
 - ✅ Phase 3.3: Service Layer (15/15) - Complete
-- ✅ Phase 3.4: Pages (11/21) - Host and player pages mostly done
+- ✅ Phase 3.4: Pages (13/21) - Host and player pages mostly done, 2 TV pages complete
+- ✅ Phase 3.5: Real-time synchronization (4/4) - Complete
 
 **In Progress**:
-- Phase 3.4: TV pages need real data (3 pages remaining: T047-T049)
-- Phase 3.5: Real-time synchronization (4 tasks remaining: T055-T058)
+- Phase 3.4: TV pages need real data (1 page remaining: T048)
+- Phase 3.4: Additional pages (T039, T045, T046)
 
 **Not Started**:
 - Phase 3.6: Integration tests (0/10)
