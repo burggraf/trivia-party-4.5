@@ -1,4 +1,4 @@
-/specify game setup
+/specify initial game setup
 
 # Multi-User Trivia Party Application
 
