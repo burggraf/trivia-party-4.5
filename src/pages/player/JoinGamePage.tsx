@@ -1,5 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/hooks/use-auth'
+import { signInAnonymous } from '@/lib/services/auth-service'
+import { findGameByCode } from '@/lib/services/game-service'
+import { createTeam, joinTeam, getTeams } from '@/lib/services/team-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function JoinGamePage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -22,16 +27,62 @@ export default function JoinGamePage() {
     setLoading(true)
 
     try {
-      // TODO: Implement game join logic
-      // 1. Validate game code exists
-      // 2. Check if team exists or create new team
-      // 3. Add player to team
-      // 4. Navigate to lobby
-      console.log('Joining game:', { gameCode, teamName, playerName })
+      // 1. Authenticate as anonymous user if not logged in
+      let currentUser = user
+      if (!currentUser) {
+        const { user: anonUser, error: authError } = await signInAnonymous({
+          displayName: playerName,
+        })
+        if (authError || !anonUser) {
+          setError('Failed to create anonymous session')
+          setLoading(false)
+          return
+        }
+        currentUser = anonUser
+      }
 
-      // Mock successful join
-      navigate(`/player/lobby/${gameCode}`)
+      // 2. Validate game code exists
+      const { game, error: gameError } = await findGameByCode(gameCode)
+      if (gameError || !game) {
+        setError('Invalid game code. Please check and try again.')
+        setLoading(false)
+        return
+      }
+
+      // 3. Check if team exists with this name
+      const { teams } = await getTeams(game.id)
+      const existingTeam = teams.find(
+        (t) => t.team_name.toLowerCase() === teamName.toLowerCase()
+      )
+
+      let teamId: string
+      if (existingTeam) {
+        // Join existing team
+        const { success, error: joinError } = await joinTeam(existingTeam.id)
+        if (joinError || !success) {
+          setError(joinError?.message || 'Failed to join team')
+          setLoading(false)
+          return
+        }
+        teamId = existingTeam.id
+      } else {
+        // Create new team
+        const { team: newTeam, error: createError } = await createTeam(
+          game.id,
+          teamName
+        )
+        if (createError || !newTeam) {
+          setError(createError?.message || 'Failed to create team')
+          setLoading(false)
+          return
+        }
+        teamId = newTeam.id
+      }
+
+      // 4. Navigate to lobby
+      navigate(`/player/lobby?gameId=${game.id}&teamId=${teamId}`)
     } catch (err) {
+      console.error('Error joining game:', err)
       setError(err instanceof Error ? err.message : 'Failed to join game')
     } finally {
       setLoading(false)
