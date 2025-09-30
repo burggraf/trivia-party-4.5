@@ -20,6 +20,7 @@ interface QuestionData {
   question: string
   answers: string[]
   answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' }
+  correctAnswer: string // The text of the correct answer
   timeLimit: number
 }
 
@@ -69,6 +70,8 @@ export default function GamePage() {
         if (questionData) {
           const gameQuestion = questionData as any
           const q = gameQuestion.question
+          // Note: In database, 'a' is always the correct answer
+          // TODO: Implement answer shuffling using randomization_seed
           const answers = [q.a, q.b, q.c, q.d]
 
           // Create map from answer text to database key (a/b/c/d)
@@ -84,6 +87,7 @@ export default function GamePage() {
             question: q.question,
             answers,
             answersMap,
+            correctAnswer: answers[0], // First answer (index 0) is always correct since we don't shuffle yet
             timeLimit: gameData.time_limit_seconds,
           })
         }
@@ -132,6 +136,8 @@ export default function GamePage() {
 
           if (payload.question) {
             const q = payload.question
+            // Note: In database, 'a' is always the correct answer
+            // TODO: Implement answer shuffling using randomization_seed
             const answers = [q.a, q.b, q.c, q.d]
             const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
             answers.forEach((answer, idx) => {
@@ -145,6 +151,7 @@ export default function GamePage() {
               question: q.question,
               answers,
               answersMap,
+              correctAnswer: answers[0], // First answer (index 0) is always correct since we don't shuffle yet
               timeLimit: payload.game?.time_limit_seconds || 30,
             })
           }
@@ -227,7 +234,18 @@ export default function GamePage() {
   }
 
   const getAnswerButtonClassName = (answer: string) => {
-    // Note: We don't show correct/incorrect until host reveals
+    if (!isRevealed || !question) return ''
+
+    // Show correct answer in green
+    if (answer === question.correctAnswer) {
+      return 'bg-green-100 border-green-500 hover:bg-green-100'
+    }
+
+    // Show selected incorrect answer in red
+    if (answer === selectedAnswer && answer !== question.correctAnswer) {
+      return 'bg-red-100 border-red-500 hover:bg-red-100'
+    }
+
     return ''
   }
 
@@ -315,7 +333,15 @@ export default function GamePage() {
                 className={`w-full h-auto py-4 text-lg justify-start ${getAnswerButtonClassName(answer)}`}
                 disabled={isAnswered || isRevealed || timeRemaining === 0}
               >
-                {answer}
+                <span className="flex items-center gap-2 w-full">
+                  <span className="flex-1 text-left">{answer}</span>
+                  {isRevealed && answer === question.correctAnswer && (
+                    <span className="text-green-600 font-bold">✓ Correct</span>
+                  )}
+                  {isRevealed && answer === selectedAnswer && answer !== question.correctAnswer && (
+                    <span className="text-red-600 font-bold">✗</span>
+                  )}
+                </span>
               </Button>
             ))}
           </CardContent>

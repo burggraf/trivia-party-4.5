@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { getGame } from '@/lib/services/game-service'
 import { getTeams, getTeamMembers } from '@/lib/services/team-service'
-// import { useRealtimeGame } from '@/lib/hooks/use-realtime-game'
+import { subscribeToGameEvents } from '@/lib/realtime/channels'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -27,16 +27,33 @@ export default function LobbyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // TODO: Subscribe to real-time game events
-  // const { gameEvents } = useRealtimeGame({
-  //   gameId: gameId || undefined,
-  //   onGameEvent: (event) => {
-  //     if (event.type === 'game_started') {
-  //       // Navigate to game page when game starts
-  //       navigate(`/player/game/${gameId}`)
-  //     }
-  //   },
-  // })
+  // Subscribe to real-time game events
+  useEffect(() => {
+    if (!gameId) return
+
+    const channel = subscribeToGameEvents(gameId, (eventType, payload) => {
+      console.log('[LobbyPage] Received event:', eventType, payload)
+
+      if (eventType === 'game_started') {
+        // Navigate to game page when game starts
+        console.log('[LobbyPage] Game started, navigating to game page')
+        navigate(`/player/game/${gameId}`)
+      } else if (eventType === 'question_advanced') {
+        // If we receive question_advanced while in lobby, game must be active
+        console.log('[LobbyPage] Received question_advanced, game is active, navigating to game page')
+        navigate(`/player/game/${gameId}`)
+      } else if (eventType === 'team_joined') {
+        // Reload teams when a new team joins
+        getTeams(gameId).then(({ teams: teamsData }) => {
+          setTeams(teamsData)
+        })
+      }
+    })
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [gameId, navigate])
 
   useEffect(() => {
     if (!gameId || !teamId) {
@@ -67,6 +84,13 @@ export default function LobbyPage() {
         }
         console.log('[Lobby] Game loaded:', gameData.name)
         setGame(gameData)
+
+        // Check if game is already active (player joined after game started)
+        if (gameData.status === 'active') {
+          console.log('[Lobby] Game is already active, navigating to game page')
+          navigate(`/player/game/${gameId}`)
+          return
+        }
 
         // Load all teams
         console.log('[Lobby] Loading teams...')
