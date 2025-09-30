@@ -537,6 +537,224 @@ export async function endGame(gameId: string) {
   return { game, error }
 }
 
+// ============================================================================
+// Game State Machine
+// ============================================================================
+
+export type GameState =
+  | 'setup'
+  | 'game_intro'
+  | 'round_intro'
+  | 'question_active'
+  | 'question_revealed'
+  | 'round_scores'
+  | 'game_complete'
+  | 'game_thanks'
+
+export interface AdvanceStateResult {
+  game: Game | null
+  nextState: GameState | null
+  completed: boolean
+  error: Error | null
+}
+
+/**
+ * Advance game state according to state machine flow
+ * Handles all state transitions and question advancement
+ */
+export async function advanceGameState(gameId: string): Promise<AdvanceStateResult> {
+  try {
+    // Get current game state
+    const { data: game } = await supabase
+      .from('games')
+      .select('*')
+      .eq('id', gameId)
+      .single()
+
+    if (!game) {
+      return {
+        game: null,
+        nextState: null,
+        completed: false,
+        error: new Error('Game not found'),
+      }
+    }
+
+    const currentState = (game.game_state || 'setup') as GameState
+    const totalQuestions = game.num_rounds * game.questions_per_round
+    const questionsPerRound = game.questions_per_round
+    const currentQuestionInRound = game.current_question_index % questionsPerRound
+    const isLastQuestionInRound = currentQuestionInRound === questionsPerRound - 1
+    const currentRound = Math.floor(game.current_question_index / questionsPerRound) + 1
+    const isLastRound = currentRound === game.num_rounds
+
+    let nextState: GameState
+    let updates: GameUpdate = {}
+
+    // State machine transitions
+    switch (currentState) {
+      case 'setup':
+        nextState = 'game_intro'
+        updates = {
+          game_state: nextState,
+          status: 'active',
+          started_at: new Date().toISOString(),
+        }
+        break
+
+      case 'game_intro':
+        nextState = 'round_intro'
+        updates = {
+          game_state: nextState,
+        }
+        break
+
+      case 'round_intro':
+        nextState = 'question_active'
+        updates = {
+          game_state: nextState,
+        }
+        break
+
+      case 'question_active':
+        nextState = 'question_revealed'
+        updates = {
+          game_state: nextState,
+        }
+        // Mark current question as revealed
+        await supabase
+          .from('game_questions')
+          .update({ revealed_at: new Date().toISOString() })
+          .eq('game_id', gameId)
+          .eq('display_order', game.current_question_index)
+        break
+
+      case 'question_revealed':
+        if (isLastQuestionInRound) {
+          nextState = 'round_scores'
+          updates = {
+            game_state: nextState,
+          }
+        } else {
+          // Advance to next question
+          nextState = 'question_active'
+          updates = {
+            game_state: nextState,
+            current_question_index: game.current_question_index + 1,
+          }
+        }
+        break
+
+      case 'round_scores':
+        if (isLastRound) {
+          nextState = 'game_complete'
+          updates = {
+            game_state: nextState,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          }
+        } else {
+          // Advance to next round
+          nextState = 'round_intro'
+          updates = {
+            game_state: nextState,
+            current_question_index: game.current_question_index + 1,
+          }
+        }
+        break
+
+      case 'game_complete':
+        nextState = 'game_thanks'
+        updates = {
+          game_state: nextState,
+        }
+        break
+
+      case 'game_thanks':
+        // Terminal state - navigation handled by page redirect
+        return {
+          game,
+          nextState: null,
+          completed: true,
+          error: null,
+        }
+
+      default:
+        return {
+          game: null,
+          nextState: null,
+          completed: false,
+          error: new Error(`Invalid game state: ${currentState}`),
+        }
+    }
+
+    // Update game with new state
+    const { data: updatedGame, error } = await supabase
+      .from('games')
+      .update(updates)
+      .eq('id', gameId)
+      .select()
+      .single()
+
+    if (error || !updatedGame) {
+      return {
+        game: null,
+        nextState: null,
+        completed: false,
+        error: error || new Error('Failed to update game state'),
+      }
+    }
+
+    // Broadcast state change event
+    try {
+      const channel = createGameChannel(gameId)
+
+      // Include question data for question_active state
+      let eventPayload: any = {
+        game: updatedGame,
+        state: nextState,
+      }
+
+      if (nextState === 'question_active') {
+        const { question: questionData } = await getCurrentQuestion(gameId)
+        if (questionData) {
+          eventPayload.question = (questionData as any).question
+          eventPayload.gameQuestionId = (questionData as any).id
+        }
+      }
+
+      // Broadcast without subscribing - we only need to send, not receive
+      await channel.send({
+        type: 'broadcast',
+        event: 'state_changed',
+        payload: eventPayload,
+      })
+    } catch (broadcastError) {
+      console.error('Failed to broadcast state_changed:', broadcastError)
+    }
+
+    // Refresh game history if completed
+    if (nextState === 'game_complete') {
+      await supabase.rpc('refresh_game_history', { p_game_id: gameId })
+    }
+
+    return {
+      game: updatedGame,
+      nextState,
+      completed: nextState === 'game_complete',
+      error: null,
+    }
+  } catch (error) {
+    console.error('Unexpected error in advanceGameState:', error)
+    return {
+      game: null,
+      nextState: null,
+      completed: false,
+      error: error as Error,
+    }
+  }
+}
+
 /**
  * Get current question for game
  */

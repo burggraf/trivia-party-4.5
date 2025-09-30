@@ -150,6 +150,7 @@ export type Database = {
           created_at: string
           current_question_index: number
           game_code: string
+          game_state: string
           host_id: string
           id: string
           max_players_per_team: number
@@ -171,6 +172,7 @@ export type Database = {
           created_at?: string
           current_question_index?: number
           game_code: string
+          game_state?: string
           host_id: string
           id?: string
           max_players_per_team?: number
@@ -192,6 +194,7 @@ export type Database = {
           created_at?: string
           current_question_index?: number
           game_code?: string
+          game_state?: string
           host_id?: string
           id?: string
           max_players_per_team?: number

@@ -114,6 +114,8 @@ export function subscribeToGameEvents(
     'question_advanced',
     'answer_revealed',
     'game_completed',
+    'state_changed',
+    'team_joined',
   ]
 
   eventTypes.forEach((eventType) => {

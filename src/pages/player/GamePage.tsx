@@ -1,13 +1,18 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
-import { getGame, getCurrentQuestion, submitAnswer } from '@/lib/services/game-service'
+import { getGame, getCurrentQuestion, submitAnswer, type GameState } from '@/lib/services/game-service'
 import { getMyTeam } from '@/lib/services/team-service'
 import { subscribeToGameEvents } from '@/lib/realtime/channels'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { GameIntroScreen } from '@/components/shared/GameIntroScreen'
+import { RoundIntroScreen } from '@/components/shared/RoundIntroScreen'
+import { RoundScoresScreen } from '@/components/shared/RoundScoresScreen'
+import { GameCompleteScreen } from '@/components/shared/GameCompleteScreen'
+import { GameThanksScreen } from '@/components/shared/GameThanksScreen'
 import type { Database } from '@/types/database.types'
 
 type Game = Database['public']['Tables']['games']['Row']
@@ -56,6 +61,11 @@ export default function GamePage() {
         }
         setGame(gameData)
         setTimeRemaining(gameData.time_limit_seconds)
+
+        // Check initial game state for revealed status
+        if (gameData.game_state === 'question_revealed') {
+          setIsRevealed(true)
+        }
 
         // Load team
         const { team: teamData, error: teamError } = await getMyTeam(gameId)
@@ -123,47 +133,48 @@ export default function GamePage() {
           }
           break
 
-        case 'question_advanced':
-          // Reset state for new question
-          setIsAnswered(false)
-          setSelectedAnswer(null)
-          setIsRevealed(false)
-
+        case 'state_changed':
+          // Update game with new state
           if (payload.game) {
             setGame(payload.game)
-            setTimeRemaining(payload.game.time_limit_seconds)
           }
 
-          if (payload.question) {
-            const q = payload.question
-            // Note: In database, 'a' is always the correct answer
-            // TODO: Implement answer shuffling using randomization_seed
-            const answers = [q.a, q.b, q.c, q.d]
-            const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
-            answers.forEach((answer, idx) => {
-              answersMap[answer] = ['a', 'b', 'c', 'd'][idx] as 'a' | 'b' | 'c' | 'd'
-            })
+          // Handle different state transitions
+          if (payload.state === 'question_active') {
+            // Reset state for new question
+            setIsAnswered(false)
+            setSelectedAnswer(null)
+            setIsRevealed(false)
 
-            setQuestion({
-              id: q.id,
-              gameQuestionId: payload.gameQuestionId,
-              category: q.category,
-              question: q.question,
-              answers,
-              answersMap,
-              correctAnswer: answers[0], // First answer (index 0) is always correct since we don't shuffle yet
-              timeLimit: payload.game?.time_limit_seconds || 30,
-            })
+            if (payload.game) {
+              setTimeRemaining(payload.game.time_limit_seconds)
+            }
+
+            if (payload.question) {
+              const q = payload.question
+              const answers = [q.a, q.b, q.c, q.d]
+              const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
+              answers.forEach((answer, idx) => {
+                answersMap[answer] = ['a', 'b', 'c', 'd'][idx] as 'a' | 'b' | 'c' | 'd'
+              })
+
+              setQuestion({
+                id: q.id,
+                gameQuestionId: payload.gameQuestionId,
+                category: q.category,
+                question: q.question,
+                answers,
+                answersMap,
+                correctAnswer: answers[0],
+                timeLimit: payload.game?.time_limit_seconds || 30,
+              })
+            }
+          } else if (payload.state === 'question_revealed') {
+            setIsRevealed(true)
+          } else if (payload.state === 'game_thanks') {
+            // Navigate to results page
+            navigate(`/player/results?gameId=${gameId}`)
           }
-          break
-
-        case 'answer_revealed':
-          setIsRevealed(true)
-          break
-
-        case 'game_completed':
-          // Navigate to results/scores page
-          navigate(`/player/results?gameId=${gameId}`)
           break
       }
     })
@@ -185,6 +196,10 @@ export default function GamePage() {
 
   const handleAnswerSelect = async (answer: string) => {
     if (isAnswered || isRevealed || !question || !team || !game) return
+
+    // Only allow answering in question_active state
+    const currentState = (game.game_state || 'setup') as GameState
+    if (currentState !== 'question_active') return
 
     setSelectedAnswer(answer)
     setIsAnswered(true)
@@ -274,10 +289,59 @@ export default function GamePage() {
     )
   }
 
+  const gameState = (game.game_state || 'setup') as GameState
   const totalQuestions = game.num_rounds * game.questions_per_round
   const currentRound = Math.floor(game.current_question_index / game.questions_per_round) + 1
   const questionNumber = game.current_question_index + 1
 
+  // Render full-screen state components (same screens as host sees)
+  if (gameState === 'game_intro') {
+    return <GameIntroScreen game={game} />
+  }
+
+  if (gameState === 'round_intro') {
+    return <RoundIntroScreen game={game} roundNumber={currentRound} />
+  }
+
+  if (gameState === 'round_scores' || gameState === 'game_complete') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="w-full max-w-3xl">
+          <CardContent className="pt-6 text-center">
+            <p className="text-lg text-muted-foreground">
+              {gameState === 'round_scores' ? 'Round complete! Scores being displayed...' : 'Game over! Final scores being displayed...'}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">Waiting for host to continue</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (gameState === 'game_thanks') {
+    return <GameThanksScreen game={game} />
+  }
+
+  // Show waiting screen for setup state
+  if (gameState === 'setup') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <CardTitle className="text-center">Waiting for Game to Start</CardTitle>
+            <CardDescription className="text-center">
+              Team: {team.team_name}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-muted-foreground">The host will start the game shortly...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Default: question display for question_active and question_revealed states
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 max-w-3xl">

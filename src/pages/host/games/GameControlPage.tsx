@@ -1,7 +1,7 @@
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
-import { getGame, getCurrentQuestion, startGame, pauseGame, resumeGame, advanceQuestion, revealAnswer, endGame } from '@/lib/services/game-service'
+import { getGame, getCurrentQuestion, advanceGameState, pauseGame, resumeGame, endGame, getGameScores, type GameState } from '@/lib/services/game-service'
 import { getTeams } from '@/lib/services/team-service'
 import { supabase } from '@/lib/supabase/client'
 import { subscribeToGameEvents } from '@/lib/realtime/channels'
@@ -9,6 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { GameIntroScreen } from '@/components/shared/GameIntroScreen'
+import { RoundIntroScreen } from '@/components/shared/RoundIntroScreen'
+import { RoundScoresScreen } from '@/components/shared/RoundScoresScreen'
+import { GameCompleteScreen } from '@/components/shared/GameCompleteScreen'
+import { GameThanksScreen } from '@/components/shared/GameThanksScreen'
 import type { Database } from '@/types/database.types'
 
 type Game = Database['public']['Tables']['games']['Row']
@@ -36,10 +41,10 @@ export default function GameControlPage() {
   const [game, setGame] = useState<Game | null>(null)
   const [question, setQuestion] = useState<QuestionData | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
+  const [teamScores, setTeamScores] = useState<Array<{ teamId: string; teamName: string; score: number; cumulativeTime: number; accuracy: number }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
-  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false)
 
   // Load game data
   useEffect(() => {
@@ -106,7 +111,6 @@ export default function GameControlPage() {
           })
           break
 
-        case 'game_started':
         case 'game_paused':
         case 'game_resumed':
           // Update game state
@@ -115,13 +119,13 @@ export default function GameControlPage() {
           }
           break
 
-        case 'question_advanced':
-          // Update game and reload question
-          setIsAnswerRevealed(false) // Reset reveal state for new question
+        case 'state_changed':
+          // Update game with new state
           if (payload.game) {
             setGame(payload.game)
           }
-          if (payload.question) {
+          // Load question if transitioning to question_active
+          if (payload.state === 'question_active' && payload.question) {
             const q = payload.question
             setQuestion({
               id: q.id,
@@ -131,14 +135,10 @@ export default function GameControlPage() {
               correctAnswerIndex: 0,
             })
           }
-          break
-
-        case 'answer_revealed':
-          setIsAnswerRevealed(true)
-          break
-
-        case 'game_completed':
-          navigate(`/host/games/${gameId}/scores`)
+          // Navigate to scores page if game is complete
+          if (payload.state === 'game_thanks') {
+            navigate(`/host/games/${gameId}/scores`)
+          }
           break
       }
     })
@@ -148,72 +148,45 @@ export default function GameControlPage() {
     }
   }, [gameId, navigate])
 
-  const handleStart = async () => {
+  const handleNext = async () => {
     if (!gameId) return
     setActionLoading(true)
-    const { game: updatedGame, error: startError } = await startGame(gameId)
-    if (startError) {
-      setError('Failed to start game')
+
+    const { game: updatedGame, nextState, error: stateError } = await advanceGameState(gameId)
+
+    if (stateError) {
+      setError('Failed to advance game state: ' + stateError.message)
     } else if (updatedGame) {
       setGame(updatedGame)
-      // Reload question after starting
-      const { question: questionData } = await getCurrentQuestion(gameId)
-      if (questionData) {
-        const gameQuestion = questionData as any
-        const q = gameQuestion.question // Access nested question object
-        setQuestion({
-          id: q.id,
-          category: q.category,
-          question: q.question,
-          answers: [q.a, q.b, q.c, q.d],
-          correctAnswerIndex: 0,
-        })
-        setIsAnswerRevealed(false) // Hide answer for new question
-      }
-    }
-    setActionLoading(false)
-  }
 
-  const handleAdvanceQuestion = async () => {
-    if (!gameId) return
-    setActionLoading(true)
-    const { game: updatedGame, error: advanceError } = await advanceQuestion(gameId)
-    if (advanceError) {
-      if (advanceError.message.includes('No more questions')) {
-        // Game completed
+      // Load question if moving to question_active state
+      if (nextState === 'question_active') {
+        const { question: questionData } = await getCurrentQuestion(gameId)
+        if (questionData) {
+          const gameQuestion = questionData as any
+          const q = gameQuestion.question
+          setQuestion({
+            id: q.id,
+            category: q.category,
+            question: q.question,
+            answers: [q.a, q.b, q.c, q.d],
+            correctAnswerIndex: 0,
+          })
+        }
+      }
+
+      // Load team scores for round_scores or game_complete states
+      if (nextState === 'round_scores' || nextState === 'game_complete') {
+        const { scores } = await getGameScores(gameId)
+        setTeamScores(scores)
+      }
+
+      // Navigate to scores page from game_thanks state
+      if (nextState === null) {
         navigate(`/host/games/${gameId}/scores`)
-      } else {
-        setError('Failed to advance question')
-      }
-    } else if (updatedGame) {
-      setGame(updatedGame)
-      setIsAnswerRevealed(false) // Hide answer for new question
-      // Reload question
-      const { question: questionData } = await getCurrentQuestion(gameId)
-      if (questionData) {
-        const gameQuestion = questionData as any
-        const q = gameQuestion.question // Access nested question object
-        setQuestion({
-          id: q.id,
-          category: q.category,
-          question: q.question,
-          answers: [q.a, q.b, q.c, q.d],
-          correctAnswerIndex: 0,
-        })
       }
     }
-    setActionLoading(false)
-  }
 
-  const handleRevealAnswer = async () => {
-    if (!gameId) return
-    setActionLoading(true)
-    const { error: revealError } = await revealAnswer(gameId)
-    if (revealError) {
-      setError('Failed to reveal answer')
-    } else {
-      setIsAnswerRevealed(true)
-    }
     setActionLoading(false)
   }
 
@@ -301,6 +274,89 @@ export default function GameControlPage() {
 
   if (!user || !game) return null
 
+  const gameState = (game.game_state || 'setup') as GameState
+  const currentRound = Math.floor(game.current_question_index / game.questions_per_round) + 1
+  const totalQuestions = game.num_rounds * game.questions_per_round
+
+  // Render full-screen state components
+  if (gameState === 'game_intro') {
+    return (
+      <div className="relative">
+        <GameIntroScreen game={game} isHost />
+        <div className="fixed bottom-8 right-8">
+          <Button onClick={handleNext} size="lg" disabled={actionLoading}>
+            {actionLoading ? 'Loading...' : 'Next'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (gameState === 'round_intro') {
+    return (
+      <div className="relative">
+        <RoundIntroScreen game={game} roundNumber={currentRound} isHost />
+        <div className="fixed bottom-8 right-8">
+          <Button onClick={handleNext} size="lg" disabled={actionLoading}>
+            {actionLoading ? 'Loading...' : 'Start Questions'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (gameState === 'round_scores') {
+    return (
+      <div className="relative">
+        <RoundScoresScreen
+          game={game}
+          roundNumber={currentRound}
+          teams={teamScores}
+          isHost
+        />
+        <div className="fixed bottom-8 right-8">
+          <Button onClick={handleNext} size="lg" disabled={actionLoading}>
+            {actionLoading ? 'Loading...' : currentRound < game.num_rounds ? 'Next Round' : 'Final Scores'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (gameState === 'game_complete') {
+    return (
+      <div className="relative">
+        <GameCompleteScreen
+          game={game}
+          teams={teamScores}
+          totalQuestions={totalQuestions}
+          isHost
+        />
+        <div className="fixed bottom-8 right-8">
+          <Button onClick={handleNext} size="lg" disabled={actionLoading}>
+            {actionLoading ? 'Loading...' : 'Continue'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (gameState === 'game_thanks') {
+    return (
+      <div className="relative">
+        <GameThanksScreen game={game} isHost />
+        <div className="fixed bottom-8 right-8">
+          <Button onClick={() => navigate(`/host/games/${gameId}/scores`)} size="lg">
+            View Final Scores
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Default layout for setup, question_active, and question_revealed states
+  const isAnswerRevealed = gameState === 'question_revealed'
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 max-w-6xl">
@@ -314,29 +370,40 @@ export default function GameControlPage() {
               ← Back to Dashboard
             </Link>
             <h1 className="text-2xl font-bold mt-2">{game.name}</h1>
-            <p className="text-sm text-muted-foreground">Game Code: {game.game_code}</p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground">Game Code: {game.game_code}</p>
+              <Link
+                to={`/tv/${game.game_code}/question`}
+                target="_blank"
+                className="text-sm text-primary hover:underline"
+              >
+                Open TV Display →
+              </Link>
+            </div>
           </div>
           <div className="flex gap-2">
             <Badge variant={game.status === 'paused' ? 'outline' : game.status === 'active' ? 'default' : 'secondary'}>
               {game.status === 'setup' ? 'Setup' : game.status === 'paused' ? 'Paused' : game.status === 'active' ? 'Active' : 'Completed'}
             </Badge>
-            <Badge variant="secondary">
-              Question {game.current_question_index + 1} of {game.num_rounds * game.questions_per_round}
-            </Badge>
+            {gameState !== 'setup' && (
+              <Badge variant="secondary">
+                Question {game.current_question_index + 1} of {totalQuestions}
+              </Badge>
+            )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Question Display */}
           <div className="lg:col-span-2 space-y-6">
-            {game.status === 'setup' ? (
+            {gameState === 'setup' ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Game Not Started</CardTitle>
                   <CardDescription>Click "Start Game" to begin</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button onClick={handleStart} size="lg" disabled={actionLoading}>
+                  <Button onClick={handleNext} size="lg" disabled={actionLoading}>
                     {actionLoading ? 'Starting...' : 'Start Game'}
                   </Button>
                 </CardContent>
@@ -347,7 +414,7 @@ export default function GameControlPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle>
-                        Round {Math.floor(game.current_question_index / game.questions_per_round) + 1} - Question {(game.current_question_index % game.questions_per_round) + 1}
+                        Round {currentRound} - Question {(game.current_question_index % game.questions_per_round) + 1}
                       </CardTitle>
                       <CardDescription>Category: {question.category}</CardDescription>
                     </div>
@@ -406,56 +473,15 @@ export default function GameControlPage() {
                 <CardDescription>Manage game flow</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {game.status !== 'setup' && (
-                  <>
-                    <Button
-                      onClick={handleRevealAnswer}
-                      className="w-full"
-                      size="lg"
-                      disabled={actionLoading}
-                    >
-                      Reveal Answer
-                    </Button>
-
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handlePreviousQuestion}
-                        className="flex-1"
-                        size="lg"
-                        variant="outline"
-                        disabled={actionLoading || game.current_question_index === 0}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        onClick={handleAdvanceQuestion}
-                        className="flex-1"
-                        size="lg"
-                        variant="outline"
-                        disabled={actionLoading}
-                      >
-                        {game.current_question_index < (game.num_rounds * game.questions_per_round) - 1 ? 'Next' : 'Scores'}
-                      </Button>
-                    </div>
-
-                    <Button
-                      onClick={handlePause}
-                      variant="outline"
-                      className="w-full"
-                      disabled={actionLoading}
-                    >
-                      {game.status === 'paused' ? 'Resume Game' : 'Pause Game'}
-                    </Button>
-
-                    <Button
-                      onClick={handleEndGame}
-                      variant="destructive"
-                      className="w-full"
-                      disabled={actionLoading}
-                    >
-                      End Game Early
-                    </Button>
-                  </>
+                {gameState !== 'setup' && (
+                  <Button
+                    onClick={handleNext}
+                    className="w-full"
+                    size="lg"
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Loading...' : 'Next'}
+                  </Button>
                 )}
               </CardContent>
             </Card>
@@ -463,7 +489,10 @@ export default function GameControlPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Teams</CardTitle>
-                <CardDescription>{teams.length} {teams.length === 1 ? 'team' : 'teams'} {teams.length > 0 ? 'playing' : 'registered'}</CardDescription>
+                <CardDescription>
+                  {teams.length} {teams.length === 1 ? 'team' : 'teams'}{' '}
+                  {teams.length > 0 ? 'playing' : 'registered'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {teams.length > 0 ? (

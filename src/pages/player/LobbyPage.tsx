@@ -34,8 +34,15 @@ export default function LobbyPage() {
     const channel = subscribeToGameEvents(gameId, (eventType, payload) => {
       console.log('[LobbyPage] Received event:', eventType, payload)
 
-      if (eventType === 'game_started') {
-        // Navigate to game page when game starts
+      if (eventType === 'state_changed') {
+        // Navigate to game page when game state changes from setup
+        const state = payload.state
+        if (state && state !== 'setup') {
+          console.log('[LobbyPage] Game state changed to', state, ', navigating to game page')
+          navigate(`/player/game/${gameId}`)
+        }
+      } else if (eventType === 'game_started') {
+        // Legacy event for backward compatibility
         console.log('[LobbyPage] Game started, navigating to game page')
         navigate(`/player/game/${gameId}`)
       } else if (eventType === 'question_advanced') {
