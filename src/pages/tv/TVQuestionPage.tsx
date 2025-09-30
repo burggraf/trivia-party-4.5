@@ -284,39 +284,37 @@ export default function TVQuestionPage() {
           </CardContent>
         </Card>
 
-        {/* Answer Options (shown when revealed) */}
-        {isRevealed && (
-          <div className="mb-12">
-            <div className="grid grid-cols-2 gap-6">
-              {question.answers.map((answer, idx) => (
-                <Card
-                  key={idx}
-                  className={`border-4 ${
-                    idx === question.correctAnswerIndex
-                      ? 'bg-green-50 border-green-500'
-                      : 'bg-card'
-                  }`}
-                >
-                  <CardContent className="pt-8 pb-8">
-                    <p className="text-4xl font-bold text-center">
-                      {answer}
-                      {idx === question.correctAnswerIndex && (
-                        <span className="ml-4 text-green-600">✓</span>
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            {question.correctAnswerIndex !== undefined && (
-              <div className="text-center mt-8">
-                <p className="text-3xl text-muted-foreground">
-                  Correct answer: <strong className="text-green-600">{question.answers[question.correctAnswerIndex]}</strong>
-                </p>
-              </div>
-            )}
+        {/* Answer Options (always shown, highlighted when revealed) */}
+        <div className="mb-12">
+          <div className="grid grid-cols-2 gap-6">
+            {question.answers.map((answer, idx) => (
+              <Card
+                key={idx}
+                className={`border-4 ${
+                  isRevealed && idx === question.correctAnswerIndex
+                    ? 'bg-green-50 border-green-500'
+                    : 'bg-card'
+                }`}
+              >
+                <CardContent className="pt-8 pb-8">
+                  <p className="text-4xl font-bold text-center">
+                    {answer}
+                    {isRevealed && idx === question.correctAnswerIndex && (
+                      <span className="ml-4 text-green-600">✓</span>
+                    )}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        )}
+          {isRevealed && question.correctAnswerIndex !== undefined && (
+            <div className="text-center mt-8">
+              <p className="text-3xl text-muted-foreground">
+                Correct answer: <strong className="text-green-600">{question.answers[question.correctAnswerIndex]}</strong>
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Progress Bar */}
         <div className="space-y-4">
