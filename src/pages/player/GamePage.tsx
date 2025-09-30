@@ -262,14 +262,14 @@ export default function GamePage() {
   const getAnswerButtonClassName = (answer: string) => {
     if (!isRevealed || !question) return ''
 
-    // Show correct answer in green
+    // Show correct answer in green with dark text for contrast
     if (answer === question.correctAnswer) {
-      return 'bg-green-100 border-green-500 hover:bg-green-100'
+      return 'bg-green-100 border-green-500 hover:bg-green-100 text-green-900'
     }
 
-    // Show selected incorrect answer in red
+    // Show selected incorrect answer in red with dark text for contrast
     if (answer === selectedAnswer && answer !== question.correctAnswer) {
-      return 'bg-red-100 border-red-500 hover:bg-red-100'
+      return 'bg-red-100 border-red-500 hover:bg-red-100 text-red-900'
     }
 
     return ''
