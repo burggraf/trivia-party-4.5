@@ -39,6 +39,7 @@ export default function GameControlPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false)
 
   // Load game data
   useEffect(() => {
@@ -116,6 +117,7 @@ export default function GameControlPage() {
 
         case 'question_advanced':
           // Update game and reload question
+          setIsAnswerRevealed(false) // Reset reveal state for new question
           if (payload.game) {
             setGame(payload.game)
           }
@@ -132,7 +134,7 @@ export default function GameControlPage() {
           break
 
         case 'answer_revealed':
-          // Could show visual feedback here
+          setIsAnswerRevealed(true)
           break
 
         case 'game_completed':
@@ -207,6 +209,8 @@ export default function GameControlPage() {
     const { error: revealError } = await revealAnswer(gameId)
     if (revealError) {
       setError('Failed to reveal answer')
+    } else {
+      setIsAnswerRevealed(true)
     }
     setActionLoading(false)
   }
@@ -360,13 +364,13 @@ export default function GameControlPage() {
                         <div
                           key={idx}
                           className={`p-3 rounded-lg border ${
-                            idx === question.correctAnswerIndex
+                            isAnswerRevealed && idx === question.correctAnswerIndex
                               ? 'bg-green-50 border-green-500'
                               : 'bg-card'
                           }`}
                         >
                           <span className="font-medium">{answer}</span>
-                          {idx === question.correctAnswerIndex && (
+                          {isAnswerRevealed && idx === question.correctAnswerIndex && (
                             <span className="ml-2 text-green-600">✓ Correct</span>
                           )}
                         </div>
@@ -374,11 +378,13 @@ export default function GameControlPage() {
                     </div>
                   </div>
 
-                  <Alert>
-                    <AlertDescription>
-                      Correct answer: <strong>{question.answers[question.correctAnswerIndex]}</strong>
-                    </AlertDescription>
-                  </Alert>
+                  {isAnswerRevealed && (
+                    <Alert>
+                      <AlertDescription>
+                        Correct answer: <strong>{question.answers[question.correctAnswerIndex]}</strong>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
             ) : (
