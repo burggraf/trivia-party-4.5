@@ -5,7 +5,7 @@ import { getTeams } from '@/lib/services/team-service'
 import { subscribeToGameEvents } from '@/lib/realtime/channels'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import QRCode from 'qrcode.react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { Database } from '@/types/database.types'
 
 type Game = Database['public']['Tables']['games']['Row']
@@ -147,7 +147,7 @@ export default function TVLobbyPage() {
             <Card className="inline-block">
               <CardContent className="pt-6 px-6 pb-6">
                 <p className="text-2xl text-muted-foreground mb-2 text-center">Or scan QR code</p>
-                <QRCode value={joinUrl} size={200} level="M" includeMargin={true} />
+                <QRCodeSVG value={joinUrl} size={200} level="M" includeMargin={true} />
               </CardContent>
             </Card>
           </div>

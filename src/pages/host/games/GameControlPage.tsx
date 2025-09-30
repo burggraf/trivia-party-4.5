@@ -15,6 +15,7 @@ import { RoundIntroScreen } from '@/components/shared/RoundIntroScreen'
 import { RoundScoresScreen } from '@/components/shared/RoundScoresScreen'
 import { GameCompleteScreen } from '@/components/shared/GameCompleteScreen'
 import { GameThanksScreen } from '@/components/shared/GameThanksScreen'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import type { Database } from '@/types/database.types'
 
 type Game = Database['public']['Tables']['games']['Row']
@@ -46,6 +47,7 @@ export default function GameControlPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [endGameDialogOpen, setEndGameDialogOpen] = useState(false)
 
   // Load game data
   useEffect(() => {
@@ -230,17 +232,19 @@ export default function GameControlPage() {
     setActionLoading(false)
   }
 
-  const handleEndGame = async () => {
+  const handleEndGameClick = () => {
+    setEndGameDialogOpen(true)
+  }
+
+  const handleEndGameConfirm = async () => {
     if (!gameId) return
-    if (confirm('Are you sure you want to end the game early?')) {
-      setActionLoading(true)
-      const { error: endError } = await endGame(gameId)
-      if (endError) {
-        setError('Failed to end game')
-        setActionLoading(false)
-      } else {
-        navigate(`/host/games/${gameId}/scores`)
-      }
+    setActionLoading(true)
+    const { error: endError } = await endGame(gameId)
+    if (endError) {
+      setError('Failed to end game')
+      setActionLoading(false)
+    } else {
+      navigate(`/host/games/${gameId}/scores`)
     }
   }
 
@@ -545,6 +549,17 @@ export default function GameControlPage() {
           </Alert>
         )}
       </div>
+
+      <ConfirmDialog
+        open={endGameDialogOpen}
+        onOpenChange={setEndGameDialogOpen}
+        onConfirm={handleEndGameConfirm}
+        title="End Game Early"
+        description="Are you sure you want to end the game early? This will complete the game and show final scores."
+        confirmText="End Game"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   )
 }

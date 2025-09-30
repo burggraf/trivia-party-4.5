@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Trash2 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 
 type Game = Database['public']['Tables']['games']['Row']
 
@@ -19,6 +21,9 @@ export default function HostDashboardPage() {
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [deletingGameId, setDeletingGameId] = useState<string | null>(null)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [gameToDelete, setGameToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -54,6 +59,36 @@ export default function HostDashboardPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     navigate('/')
+  }
+
+  const handleDeleteClick = (gameId: string) => {
+    setGameToDelete(gameId)
+    setConfirmDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!gameToDelete) return
+
+    setDeletingGameId(gameToDelete)
+    setError('')
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('games')
+        .delete()
+        .eq('id', gameToDelete)
+
+      if (deleteError) throw deleteError
+
+      // Remove game from local state
+      setGames(games.filter(g => g.id !== gameToDelete))
+    } catch (err) {
+      console.error('Failed to delete game:', err)
+      setError('Failed to delete game. Please try again.')
+    } finally {
+      setDeletingGameId(null)
+      setGameToDelete(null)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -182,6 +217,15 @@ export default function HostDashboardPage() {
                               <Link to={`/host/games/${game.id}/scores`}>View Results</Link>
                             </Button>
                           )}
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => handleDeleteClick(game.id)}
+                            disabled={deletingGameId === game.id}
+                            title="Delete game"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -198,6 +242,17 @@ export default function HostDashboardPage() {
           </Link>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onOpenChange={setConfirmDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Game"
+        description="Are you sure you want to delete this game? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   )
 }
