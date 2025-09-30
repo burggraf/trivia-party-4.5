@@ -4,6 +4,15 @@ import TestPage from './pages/TestPage'
 import HostLoginPage from './pages/host/HostLoginPage'
 import HostDashboardPage from './pages/host/HostDashboardPage'
 import GameCreatePage from './pages/host/games/GameCreatePage'
+import GameControlPage from './pages/host/games/GameControlPage'
+import GameScoresPage from './pages/host/games/GameScoresPage'
+import PlayerLoginPage from './pages/player/PlayerLoginPage'
+import JoinGamePage from './pages/player/JoinGamePage'
+import LobbyPage from './pages/player/LobbyPage'
+import GamePage from './pages/player/GamePage'
+import TVLobbyPage from './pages/tv/TVLobbyPage'
+import TVQuestionPage from './pages/tv/TVQuestionPage'
+import TVScoresPage from './pages/tv/TVScoresPage'
 
 export default function App() {
   return (
@@ -13,6 +22,15 @@ export default function App() {
       <Route path="/host/login" element={<HostLoginPage />} />
       <Route path="/host/dashboard" element={<HostDashboardPage />} />
       <Route path="/host/games/create" element={<GameCreatePage />} />
+      <Route path="/host/games/:gameId/control" element={<GameControlPage />} />
+      <Route path="/host/games/:gameId/scores" element={<GameScoresPage />} />
+      <Route path="/player/login" element={<PlayerLoginPage />} />
+      <Route path="/player/join" element={<JoinGamePage />} />
+      <Route path="/player/lobby/:gameCode" element={<LobbyPage />} />
+      <Route path="/player/game/:gameId" element={<GamePage />} />
+      <Route path="/tv/:gameCode/lobby" element={<TVLobbyPage />} />
+      <Route path="/tv/:gameCode/question" element={<TVQuestionPage />} />
+      <Route path="/tv/:gameCode/scores" element={<TVScoresPage />} />
     </Routes>
   )
 }
