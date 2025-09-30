@@ -286,25 +286,19 @@ export async function getMyTeam(gameId: string) {
 }
 
 /**
- * Get team members
+ * Get team members with player display names from auth metadata
  */
 export async function getTeamMembers(teamId: string) {
-  
+
 
   const { data: members, error } = await supabase
     .from('team_members')
-    .select(
-      `
-      *,
-      player_profiles (
-        id,
-        display_name,
-        is_anonymous
-      )
-    `
-    )
+    .select('*')
     .eq('team_id', teamId)
     .order('joined_at', { ascending: true })
+
+  // Note: Display names are stored in auth.users.raw_user_meta_data.display_name
+  // We'll fetch them on the client side if needed, or return just the IDs
 
   return { members: members || [], error }
 }

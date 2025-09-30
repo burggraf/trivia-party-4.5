@@ -11,11 +11,7 @@ import type { Database } from '@/types/database.types'
 
 type Game = Database['public']['Tables']['games']['Row']
 type Team = Database['public']['Tables']['teams']['Row']
-type TeamMember = Database['public']['Tables']['team_members']['Row'] & {
-  player_profiles?: {
-    display_name: string
-  } | null
-}
+type TeamMember = Database['public']['Tables']['team_members']['Row']
 
 export default function LobbyPage() {
   const [searchParams] = useSearchParams()
@@ -217,9 +213,9 @@ export default function LobbyPage() {
                       {members.length === 0 ? (
                         <span className="text-sm text-muted-foreground">No players yet</span>
                       ) : (
-                        members.map((member) => {
-                          const displayName = member.player_profiles?.display_name || 'Player'
+                        members.map((member, index) => {
                           const isCurrentPlayer = member.player_id === user?.id
+                          const displayName = isCurrentPlayer ? 'You' : `Player ${index + 1}`
 
                           return (
                             <Badge
