@@ -580,6 +580,41 @@ export async function submitAnswer(
       }
     }
 
+    // Update team score if answer is correct
+    if (isCorrect) {
+      const { data: team } = await supabase
+        .from('teams')
+        .select('score, cumulative_answer_time_ms')
+        .eq('id', request.teamId)
+        .single()
+
+      if (team) {
+        await supabase
+          .from('teams')
+          .update({
+            score: team.score + 1,
+            cumulative_answer_time_ms: team.cumulative_answer_time_ms + request.answerTimeMs,
+          })
+          .eq('id', request.teamId)
+      }
+    } else {
+      // Still update cumulative time for wrong answers (for tie-breaking)
+      const { data: team } = await supabase
+        .from('teams')
+        .select('cumulative_answer_time_ms')
+        .eq('id', request.teamId)
+        .single()
+
+      if (team) {
+        await supabase
+          .from('teams')
+          .update({
+            cumulative_answer_time_ms: team.cumulative_answer_time_ms + request.answerTimeMs,
+          })
+          .eq('id', request.teamId)
+      }
+    }
+
     return {
       submission,
       isCorrect,
@@ -590,6 +625,115 @@ export async function submitAnswer(
     return {
       submission: null,
       isCorrect: false,
+      error: error as Error,
+    }
+  }
+}
+
+// ============================================================================
+// Game Scores (FR-076)
+// ============================================================================
+
+export interface TeamScore {
+  teamId: string
+  teamName: string
+  playerCount: number
+  score: number
+  cumulativeTime: number
+  accuracy: number
+  rank: number
+}
+
+export interface GameScoresResult {
+  game: Game | null
+  scores: TeamScore[]
+  totalQuestions: number
+  error: Error | null
+}
+
+/**
+ * Get final scores for a completed game
+ * Teams ranked by score (correct answers), ties broken by cumulative time
+ */
+export async function getGameScores(gameId: string): Promise<GameScoresResult> {
+  try {
+    // Get game details
+    const { data: game, error: gameError } = await supabase
+      .from('games')
+      .select('*')
+      .eq('id', gameId)
+      .single()
+
+    if (gameError || !game) {
+      return {
+        game: null,
+        scores: [],
+        totalQuestions: 0,
+        error: new Error('Game not found'),
+      }
+    }
+
+    const totalQuestions = game.num_rounds * game.questions_per_round
+
+    // Get teams with member counts
+    const { data: teams, error: teamsError } = await supabase
+      .from('teams')
+      .select(`
+        id,
+        team_name,
+        score,
+        cumulative_answer_time_ms,
+        team_members (
+          id
+        )
+      `)
+      .eq('game_id', gameId)
+
+    if (teamsError || !teams) {
+      return {
+        game,
+        scores: [],
+        totalQuestions,
+        error: new Error('Failed to load teams'),
+      }
+    }
+
+    // Calculate scores and rankings
+    const scores: TeamScore[] = teams.map((team: any) => ({
+      teamId: team.id,
+      teamName: team.team_name,
+      playerCount: team.team_members?.length || 0,
+      score: team.score,
+      cumulativeTime: team.cumulative_answer_time_ms,
+      accuracy: totalQuestions > 0 ? Math.round((team.score / totalQuestions) * 100) : 0,
+      rank: 0, // Will be set after sorting
+    }))
+
+    // Sort by score (descending), then by time (ascending for tie-breaking)
+    scores.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score
+      }
+      return a.cumulativeTime - b.cumulativeTime
+    })
+
+    // Assign ranks
+    scores.forEach((team, index) => {
+      team.rank = index + 1
+    })
+
+    return {
+      game,
+      scores,
+      totalQuestions,
+      error: null,
+    }
+  } catch (error) {
+    console.error('Unexpected error in getGameScores:', error)
+    return {
+      game: null,
+      scores: [],
+      totalQuestions: 0,
       error: error as Error,
     }
   }
