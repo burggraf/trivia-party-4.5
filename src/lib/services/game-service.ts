@@ -10,6 +10,7 @@
 import { supabase } from '@/lib/supabase/client'
 import { selectQuestions, recordQuestionUsage } from '@/lib/game/question-selection'
 import { generateGameCode } from '@/lib/utils/game-code'
+import { createGameChannel, broadcastGameEvent } from '@/lib/realtime/channels'
 import type { CreateGameRequest, CreateGameResponse } from '@/types/api.types'
 import type { Database } from '@/types/database.types'
 
@@ -333,6 +334,18 @@ export async function startGame(gameId: string) {
     .select()
     .single()
 
+  // Broadcast game_started event
+  if (game && !error) {
+    try {
+      const channel = createGameChannel(gameId)
+      await channel.subscribe()
+      await broadcastGameEvent(channel, 'game_started', { game })
+      await channel.unsubscribe()
+    } catch (broadcastError) {
+      console.error('Failed to broadcast game_started:', broadcastError)
+    }
+  }
+
   return { game, error }
 }
 
@@ -349,6 +362,18 @@ export async function pauseGame(gameId: string) {
     .select()
     .single()
 
+  // Broadcast game_paused event
+  if (game && !error) {
+    try {
+      const channel = createGameChannel(gameId)
+      await channel.subscribe()
+      await broadcastGameEvent(channel, 'game_paused', { game })
+      await channel.unsubscribe()
+    } catch (broadcastError) {
+      console.error('Failed to broadcast game_paused:', broadcastError)
+    }
+  }
+
   return { game, error }
 }
 
@@ -364,6 +389,18 @@ export async function resumeGame(gameId: string) {
     .eq('status', 'paused')
     .select()
     .single()
+
+  // Broadcast game_resumed event
+  if (game && !error) {
+    try {
+      const channel = createGameChannel(gameId)
+      await channel.subscribe()
+      await broadcastGameEvent(channel, 'game_resumed', { game })
+      await channel.unsubscribe()
+    } catch (broadcastError) {
+      console.error('Failed to broadcast game_resumed:', broadcastError)
+    }
+  }
 
   return { game, error }
 }
@@ -398,6 +435,25 @@ export async function advanceQuestion(gameId: string) {
     .select()
     .single()
 
+  // Broadcast question_advanced event with new question data
+  if (updatedGame && !error) {
+    try {
+      // Get the new question
+      const { question: questionData } = await getCurrentQuestion(gameId)
+
+      const channel = createGameChannel(gameId)
+      await channel.subscribe()
+      await broadcastGameEvent(channel, 'question_advanced', {
+        game: updatedGame,
+        question: questionData ? (questionData as any).question : null,
+        gameQuestionId: questionData ? (questionData as any).id : null,
+      })
+      await channel.unsubscribe()
+    } catch (broadcastError) {
+      console.error('Failed to broadcast question_advanced:', broadcastError)
+    }
+  }
+
   return { game: updatedGame, error }
 }
 
@@ -425,6 +481,20 @@ export async function revealAnswer(gameId: string) {
     .eq('display_order', game.current_question_index)
     .select()
     .single()
+
+  // Broadcast answer_revealed event
+  if (gameQuestion && !error) {
+    try {
+      const channel = createGameChannel(gameId)
+      await channel.subscribe()
+      await broadcastGameEvent(channel, 'answer_revealed', {
+        game_question_id: gameQuestion.id,
+      })
+      await channel.unsubscribe()
+    } catch (broadcastError) {
+      console.error('Failed to broadcast answer_revealed:', broadcastError)
+    }
+  }
 
   return { gameQuestion, error }
 }

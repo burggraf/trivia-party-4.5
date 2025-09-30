@@ -1,73 +1,74 @@
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
+import { getGame, getGameScores } from '@/lib/services/game-service'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import type { Database } from '@/types/database.types'
+
+type Game = Database['public']['Tables']['games']['Row']
+
+interface TeamScore {
+  rank: number
+  teamId: string
+  teamName: string
+  playerCount: number
+  score: number
+  totalQuestions: number
+  accuracy: number
+  cumulativeTime: number
+}
 
 export default function GameScoresPage() {
   const { gameId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
 
-  // Mock game data - will be replaced with actual data
+  const [game, setGame] = useState<Game | null>(null)
+  const [scores, setScores] = useState<TeamScore[]>([])
   const [loading, setLoading] = useState(true)
-
-  const mockGameData = {
-    name: 'Monday Night Trivia',
-    date: '2025-09-30',
-    totalRounds: 3,
-    totalQuestions: 15,
-  }
-
-  const mockScores = [
-    {
-      rank: 1,
-      teamName: 'Quiz Wizards',
-      playerCount: 3,
-      correctAnswers: 13,
-      totalQuestions: 15,
-      accuracy: 87,
-      cumulativeTime: 145000, // milliseconds
-    },
-    {
-      rank: 2,
-      teamName: 'Brain Trust',
-      playerCount: 4,
-      correctAnswers: 13,
-      totalQuestions: 15,
-      accuracy: 87,
-      cumulativeTime: 152000,
-    },
-    {
-      rank: 3,
-      teamName: 'Trivia Masters',
-      playerCount: 2,
-      correctAnswers: 11,
-      totalQuestions: 15,
-      accuracy: 73,
-      cumulativeTime: 128000,
-    },
-    {
-      rank: 4,
-      teamName: 'Know It Alls',
-      playerCount: 5,
-      correctAnswers: 9,
-      totalQuestions: 15,
-      accuracy: 60,
-      cumulativeTime: 134000,
-    },
-  ]
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       navigate('/host/login')
-    } else {
-      // Simulate loading
-      setTimeout(() => setLoading(false), 500)
+      return
     }
-  }, [user, navigate])
+
+    if (!gameId || !user) return
+
+    const loadGameData = async () => {
+      try {
+        setLoading(true)
+
+        // Load game
+        const { game: gameData, error: gameError } = await getGame(gameId)
+        if (gameError || !gameData) {
+          setError('Failed to load game')
+          return
+        }
+        setGame(gameData)
+
+        // Load scores
+        const { scores: scoresData, error: scoresError } = await getGameScores(gameId)
+        if (scoresError) {
+          setError('Failed to load scores')
+          return
+        }
+
+        setScores(scoresData as TeamScore[])
+        setLoading(false)
+      } catch (err) {
+        console.error('Error loading game:', err)
+        setError('Failed to load game data')
+        setLoading(false)
+      }
+    }
+
+    loadGameData()
+  }, [gameId, user, authLoading, navigate])
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000)
@@ -84,7 +85,19 @@ export default function GameScoresPage() {
     navigate('/host/dashboard')
   }
 
-  if (!user) return null
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user || !game) return null
+
+  const totalQuestions = game.num_rounds * game.questions_per_round
+  const totalPlayers = scores.reduce((sum, team) => sum + team.playerCount, 0)
+  const gameDate = new Date(game.created_at).toLocaleDateString()
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,9 +112,17 @@ export default function GameScoresPage() {
           </Link>
           <h1 className="text-2xl font-bold mt-2">Final Scores</h1>
           <p className="text-sm text-muted-foreground">
-            {mockGameData.name} • {mockGameData.date}
+            {game.name} • {gameDate}
           </p>
         </div>
+
+        {error && (
+          <Card className="mb-6 border-destructive">
+            <CardContent className="pt-6">
+              <p className="text-destructive">{error}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="space-y-6">
           {/* Game Summary */}
@@ -114,21 +135,19 @@ export default function GameScoresPage() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Total Teams</p>
-                  <p className="text-2xl font-bold">{mockScores.length}</p>
+                  <p className="text-2xl font-bold">{scores.length}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Total Players</p>
-                  <p className="text-2xl font-bold">
-                    {mockScores.reduce((sum, team) => sum + team.playerCount, 0)}
-                  </p>
+                  <p className="text-2xl font-bold">{totalPlayers}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Questions</p>
-                  <p className="text-2xl font-bold">{mockGameData.totalQuestions}</p>
+                  <p className="text-2xl font-bold">{totalQuestions}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Rounds</p>
-                  <p className="text-2xl font-bold">{mockGameData.totalRounds}</p>
+                  <p className="text-2xl font-bold">{game.num_rounds}</p>
                 </div>
               </div>
             </CardContent>
@@ -155,30 +174,37 @@ export default function GameScoresPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockScores.map((team) => (
-                    <TableRow key={team.rank}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {team.rank === 1 && (
-                            <Badge variant="default" className="w-8 h-8 rounded-full flex items-center justify-center">
-                              {team.rank}
-                            </Badge>
-                          )}
-                          {team.rank === 2 && (
-                            <Badge variant="secondary" className="w-8 h-8 rounded-full flex items-center justify-center">
-                              {team.rank}
-                            </Badge>
-                          )}
-                          {team.rank === 3 && (
-                            <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
-                              {team.rank}
-                            </Badge>
-                          )}
-                          {team.rank > 3 && (
-                            <span className="w-8 h-8 flex items-center justify-center text-sm text-muted-foreground">
-                              {team.rank}
-                            </span>
-                          )}
+                  {scores.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        No teams participated in this game
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    scores.map((team) => (
+                      <TableRow key={team.teamId}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {team.rank === 1 && (
+                              <Badge variant="default" className="w-8 h-8 rounded-full flex items-center justify-center">
+                                {team.rank}
+                              </Badge>
+                            )}
+                            {team.rank === 2 && (
+                              <Badge variant="secondary" className="w-8 h-8 rounded-full flex items-center justify-center">
+                                {team.rank}
+                              </Badge>
+                            )}
+                            {team.rank === 3 && (
+                              <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
+                                {team.rank}
+                              </Badge>
+                            )}
+                            {team.rank > 3 && (
+                              <span className="w-8 h-8 flex items-center justify-center text-sm text-muted-foreground">
+                                {team.rank}
+                              </span>
+                            )}
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{team.teamName}</TableCell>
@@ -186,14 +212,15 @@ export default function GameScoresPage() {
                         <Badge variant="secondary">{team.playerCount}</Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                        {team.correctAnswers} / {team.totalQuestions}
+                        {team.score} / {team.totalQuestions}
                       </TableCell>
                       <TableCell className="text-center">{team.accuracy}%</TableCell>
                       <TableCell className="text-center text-muted-foreground">
                         {formatTime(team.cumulativeTime)}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

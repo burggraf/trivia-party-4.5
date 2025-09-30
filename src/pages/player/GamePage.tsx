@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { getGame, getCurrentQuestion, submitAnswer } from '@/lib/services/game-service'
 import { getMyTeam } from '@/lib/services/team-service'
+import { subscribeToGameEvents } from '@/lib/realtime/channels'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -97,6 +98,73 @@ export default function GamePage() {
 
     loadGameData()
   }, [gameId, user])
+
+  // Subscribe to real-time game events
+  useEffect(() => {
+    if (!gameId) return
+
+    const channel = subscribeToGameEvents(gameId, (eventType, payload) => {
+      console.log('[GamePage] Received event:', eventType, payload)
+
+      switch (eventType) {
+        case 'game_paused':
+          if (payload.game) {
+            setGame(payload.game)
+          }
+          break
+
+        case 'game_resumed':
+          if (payload.game) {
+            setGame(payload.game)
+          }
+          break
+
+        case 'question_advanced':
+          // Reset state for new question
+          setIsAnswered(false)
+          setSelectedAnswer(null)
+          setIsRevealed(false)
+
+          if (payload.game) {
+            setGame(payload.game)
+            setTimeRemaining(payload.game.time_limit_seconds)
+          }
+
+          if (payload.question) {
+            const q = payload.question
+            const answers = [q.a, q.b, q.c, q.d]
+            const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
+            answers.forEach((answer, idx) => {
+              answersMap[answer] = ['a', 'b', 'c', 'd'][idx] as 'a' | 'b' | 'c' | 'd'
+            })
+
+            setQuestion({
+              id: q.id,
+              gameQuestionId: payload.gameQuestionId,
+              category: q.category,
+              question: q.question,
+              answers,
+              answersMap,
+              timeLimit: payload.game?.time_limit_seconds || 30,
+            })
+          }
+          break
+
+        case 'answer_revealed':
+          setIsRevealed(true)
+          break
+
+        case 'game_completed':
+          // Navigate to results/scores page
+          navigate(`/player/results?gameId=${gameId}`)
+          break
+      }
+    })
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [gameId, navigate])
 
   // Timer countdown
   useEffect(() => {

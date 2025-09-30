@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/hooks/use-auth'
 import { getGame, getCurrentQuestion, startGame, pauseGame, resumeGame, advanceQuestion, revealAnswer, endGame } from '@/lib/services/game-service'
 import { getTeams } from '@/lib/services/team-service'
 import { supabase } from '@/lib/supabase/client'
+import { subscribeToGameEvents } from '@/lib/realtime/channels'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -88,6 +89,62 @@ export default function GameControlPage() {
 
     loadGameData()
   }, [gameId, user, authLoading, navigate])
+
+  // Subscribe to real-time game events
+  useEffect(() => {
+    if (!gameId) return
+
+    const channel = subscribeToGameEvents(gameId, (eventType, payload) => {
+      console.log('[GameControlPage] Received event:', eventType, payload)
+
+      switch (eventType) {
+        case 'team_joined':
+          // Reload teams when a new team joins
+          getTeams(gameId).then(({ teams: teamsData }) => {
+            setTeams(teamsData as Team[])
+          })
+          break
+
+        case 'game_started':
+        case 'game_paused':
+        case 'game_resumed':
+          // Update game state
+          if (payload.game) {
+            setGame(payload.game)
+          }
+          break
+
+        case 'question_advanced':
+          // Update game and reload question
+          if (payload.game) {
+            setGame(payload.game)
+          }
+          if (payload.question) {
+            const q = payload.question
+            setQuestion({
+              id: q.id,
+              category: q.category,
+              question: q.question,
+              answers: [q.a, q.b, q.c, q.d],
+              correctAnswerIndex: 0,
+            })
+          }
+          break
+
+        case 'answer_revealed':
+          // Could show visual feedback here
+          break
+
+        case 'game_completed':
+          navigate(`/host/games/${gameId}/scores`)
+          break
+      }
+    })
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [gameId, navigate])
 
   const handleStart = async () => {
     if (!gameId) return

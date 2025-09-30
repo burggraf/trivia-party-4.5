@@ -543,20 +543,20 @@ supabase/            # Database migrations
 
 ### Utility Services (T031-T034)
 
-- [ ] **T031** [P] Implement game code utilities in `src/lib/utils/game-code.ts`
+- [X] **T031** [P] Implement game code utilities in `src/lib/utils/game-code.ts`
   - generateGameCode(): Creates 6-character unique code
   - validateGameCode(code): Validates code format
 
-- [ ] **T032** [P] Implement QR code utilities in `src/lib/utils/qr-code.ts`
+- [X] **T032** [P] Implement QR code utilities in `src/lib/utils/qr-code.ts`
   - generateQRCode(url): Generates QR code for player join
   - getJoinUrl(gameCode): Creates join URL
 
-- [ ] **T033** [P] Implement hooks in `src/lib/hooks/`
+- [X] **T033** [P] Implement hooks in `src/lib/hooks/`
   - use-auth.ts: useAuth() hook for current user
   - use-game.ts: useGame() hook for game state
   - use-realtime.ts: useRealtime() hook for Supabase channels
 
-- [ ] **T034** [P] Generate TypeScript types from Supabase
+- [X] **T034** [P] Generate TypeScript types from Supabase
   - Run: `npx supabase gen types typescript --local > src/types/database.types.ts`
   - Create: `src/types/game.types.ts` for domain types
   - Create: `src/types/api.types.ts` with Zod schemas

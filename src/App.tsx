@@ -14,6 +14,7 @@ import PlayerForgotPasswordPage from './pages/player/PlayerForgotPasswordPage'
 import JoinGamePage from './pages/player/JoinGamePage'
 import LobbyPage from './pages/player/LobbyPage'
 import GamePage from './pages/player/GamePage'
+import PlayerResultsPage from './pages/player/PlayerResultsPage'
 import TVLobbyPage from './pages/tv/TVLobbyPage'
 import TVQuestionPage from './pages/tv/TVQuestionPage'
 import TVScoresPage from './pages/tv/TVScoresPage'
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/player/join" element={<JoinGamePage />} />
       <Route path="/player/lobby" element={<LobbyPage />} />
       <Route path="/player/game/:gameId" element={<GamePage />} />
+      <Route path="/player/results" element={<PlayerResultsPage />} />
       <Route path="/tv/:gameCode/lobby" element={<TVLobbyPage />} />
       <Route path="/tv/:gameCode/question" element={<TVQuestionPage />} />
       <Route path="/tv/:gameCode/scores" element={<TVScoresPage />} />

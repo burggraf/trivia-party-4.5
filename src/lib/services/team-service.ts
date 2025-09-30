@@ -8,6 +8,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase/client'
+import { createGameChannel, broadcastGameEvent } from '@/lib/realtime/channels'
 import type { Database } from '@/types/database.types'
 
 type Team = Database['public']['Tables']['teams']['Row']
@@ -87,6 +88,20 @@ export async function createTeam(gameId: string, teamName: string) {
         team: null,
         error: new Error('Failed to join team'),
       }
+    }
+
+    // Broadcast team_joined event via realtime
+    try {
+      const channel = createGameChannel(gameId)
+      await channel.subscribe()
+      await broadcastGameEvent(channel, 'team_joined', {
+        team_id: team.id,
+        team_name: team.team_name,
+      })
+      await channel.unsubscribe()
+    } catch (broadcastError) {
+      console.error('Failed to broadcast team_joined event:', broadcastError)
+      // Don't fail the operation if broadcast fails
     }
 
     return { team, error: null }
