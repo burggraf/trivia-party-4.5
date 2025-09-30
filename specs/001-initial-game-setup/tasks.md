@@ -755,58 +755,58 @@ supabase/            # Database migrations
 
 ---
 
-## Phase 3.6: Integration Tests (T059-T068)
+## Phase 3.6: Integration Tests (T059-T068) - Completed ✓
 
-- [ ] **T059** [P] E2E test: Host game setup in `tests/e2e/host-setup.spec.ts`
+- [X] **T059** [P] E2E test: Host game setup in `tests/e2e/host-setup.spec.ts`
   - Register host, login, create game
   - Verify game code generated
   - Verify game appears in dashboard
 
-- [ ] **T060** [P] E2E test: Player join flow in `tests/e2e/player-join.spec.ts`
+- [X] **T060** [P] E2E test: Player join flow in `tests/e2e/player-join.spec.ts`
   - Join game with code
   - Create/join team
   - Verify lobby displays correctly
 
-- [ ] **T061** [P] E2E test: Host start game in `tests/e2e/host-start.spec.ts`
+- [X] **T061** [P] E2E test: Host start game in `tests/e2e/host-start.spec.ts`
   - Start game from control page
   - Verify status changes to 'active'
   - Verify question loads
 
-- [ ] **T062** [P] E2E test: Player answer submission in `tests/e2e/player-answer.spec.ts`
+- [X] **T062** [P] E2E test: Player answer submission in `tests/e2e/player-answer.spec.ts`
   - Submit answer before timer expires
   - Verify answer recorded in database
   - Verify score updated
   - Test duplicate submission blocked
 
-- [ ] **T063** [P] E2E test: Host reveal and advance in `tests/e2e/host-advance.spec.ts`
+- [X] **T063** [P] E2E test: Host reveal and advance in `tests/e2e/host-advance.spec.ts`
   - Reveal answer
   - Advance to next question
   - Verify question index incremented
 
-- [ ] **T064** [P] E2E test: Multi-player gameplay in `tests/e2e/multi-player.spec.ts`
+- [X] **T064** [P] E2E test: Multi-player gameplay in `tests/e2e/multi-player.spec.ts`
   - Two players, two teams
   - Both submit answers
   - Verify scores calculated correctly
   - Verify tie-breaking works
 
-- [ ] **T065** [P] E2E test: Real-time sync in `tests/e2e/realtime-sync.spec.ts`
+- [X] **T065** [P] E2E test: Real-time sync in `tests/e2e/realtime-sync.spec.ts`
   - Host advances question
   - Player page auto-updates
   - TV page auto-updates
   - Verify sync latency < 300ms
 
-- [ ] **T066** [P] E2E test: Game completion in `tests/e2e/game-completion.spec.ts`
+- [X] **T066** [P] E2E test: Game completion in `tests/e2e/game-completion.spec.ts`
   - Advance through all questions
   - End game
   - Verify final scores page displays
   - Verify game history updated
 
-- [ ] **T067** [P] Unit test: Question selection in `tests/unit/question-selection.test.ts`
+- [X] **T067** [P] Unit test: Question selection in `tests/unit/question-selection.test.ts`
   - Test reuse prevention
   - Test category exhaustion handling
   - Test auto-supplementation
 
-- [ ] **T068** [P] Unit test: Scoring logic in `tests/unit/scoring.test.ts`
+- [X] **T068** [P] Unit test: Scoring logic in `tests/unit/scoring.test.ts`
   - Test score calculation
   - Test tie-breaking by time
   - Test accuracy percentages
@@ -864,18 +864,18 @@ supabase/            # Database migrations
 
 ## Progress Summary
 
-**Completed**: 54/74 tasks (73.0%)
+**Completed**: 64/74 tasks (86.5%)
 - ✅ Phase 3.1: Setup (8/8) - Complete
 - ✅ Phase 3.2: Database migrations (12/12) - Complete
 - ✅ Phase 3.3: Service Layer (15/15) - Complete
-- ✅ Phase 3.4: Pages & Components (21/21) - ALL COMPLETE
+- ✅ Phase 3.4: Pages & Components (21/21) - Complete
 - ✅ Phase 3.5: Real-time synchronization (4/4) - Complete
+- ✅ Phase 3.6: Integration tests (10/10) - Complete
 
 **Remaining**:
-- Phase 3.6: Integration tests (0/10) - E2E tests with Playwright
 - Phase 3.7: Validation (0/5) - Performance, accessibility, cross-browser
 
-**Application Status**: Core functionality 100% complete, ready for testing phase
+**Application Status**: Core functionality and tests complete, ready for validation phase
 
 ---
 
@@ -886,8 +886,8 @@ supabase/            # Database migrations
 2. ✅ Update TV display pages with real data (T047-T049) - DONE
 3. ✅ Implement real-time synchronization (T055-T058) - DONE
 4. ✅ All core pages functional - DONE
-5. Begin integration tests (T059-T068) - NEXT
-6. Run validation tasks (T069-T073) - AFTER TESTS
+5. ✅ Complete integration tests (T059-T068) - DONE
+6. Run validation tasks (T069-T073) - NEXT
 
 **Critical path for MVP:**
-✅ T009-T019 → ✅ T039, T047-T049 → ✅ T055-T058 → T059-T066 → T069
+✅ T009-T019 → ✅ T039, T047-T049 → ✅ T055-T058 → ✅ T059-T068 → T069-T073
