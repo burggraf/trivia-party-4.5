@@ -628,7 +628,7 @@ supabase/            # Database migrations
   - **FR Coverage**: FR-061 (navigate back preserves answers)
   - **Dependencies**: T021 (game control services), T055-T058 (Realtime sync)
 
-- [ ] **T039** [P] Update GameScoresPage in `src/pages/host/games/GameScoresPage.tsx`
+- [X] **T039** [P] Update GameScoresPage in `src/pages/host/games/GameScoresPage.tsx`
   - Replace mock data with getGameScores() call
   - Display final rankings sorted by score and time
   - Show accuracy percentages
@@ -664,7 +664,7 @@ supabase/            # Database migrations
   - Shows "Answer submitted! Waiting for other teams..." after submit
   - Auto-updates when host advances question (needs T055-T058)
 
-- [ ] **T045** [P] Implement player results page in `src/pages/player/PlayerResultsPage.tsx`
+- [X] **T045** [P] Implement player results page in `src/pages/player/PlayerResultsPage.tsx`
   - Shows final score for player's team
   - Displays team ranking
   - Option to join another game
@@ -683,7 +683,7 @@ supabase/            # Database migrations
   - List all teams and player counts
   - Auto-advances to question when game starts (needs T055-T058)
 
-- [ ] **T048** [P] Update TVQuestionPage in `src/pages/tv/TVQuestionPage.tsx`
+- [X] **T048** [P] Update TVQuestionPage in `src/pages/tv/TVQuestionPage.tsx`
   - Replace mock data with getCurrentQuestion() call
   - Display question and shuffled answers (use randomization seed)
   - Show timer countdown
@@ -859,16 +859,16 @@ supabase/            # Database migrations
 
 ## Progress Summary
 
-**Completed**: 40/74 tasks (54.1%)
+**Completed**: 43/74 tasks (58.1%)
 - ✅ Phase 3.1: Setup (8/8) - Complete
 - ✅ Phase 3.2: Database migrations (12/12) - Complete
 - ✅ Phase 3.3: Service Layer (15/15) - Complete
-- ✅ Phase 3.4: Pages (13/21) - Host and player pages mostly done, 2 TV pages complete
+- ✅ Phase 3.4: Pages (16/21) - All host pages done, all TV pages done, all player pages done
 - ✅ Phase 3.5: Real-time synchronization (4/4) - Complete
 
 **In Progress**:
-- Phase 3.4: TV pages need real data (1 page remaining: T048)
-- Phase 3.4: Additional pages (T039, T045, T046)
+- Phase 3.4: Component libraries (T040, T046, T050-T052)
+- Phase 3.4: Infrastructure (T053 Router, T054 Error Boundary)
 
 **Not Started**:
 - Phase 3.6: Integration tests (0/10)
