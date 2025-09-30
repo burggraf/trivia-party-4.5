@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import TestPage from './pages/TestPage'
+import NotFoundPage from './pages/NotFoundPage'
 import HostLoginPage from './pages/host/HostLoginPage'
 import HostRegisterPage from './pages/host/HostRegisterPage'
 import HostForgotPasswordPage from './pages/host/HostForgotPasswordPage'
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/tv/:gameCode/lobby" element={<TVLobbyPage />} />
       <Route path="/tv/:gameCode/question" element={<TVQuestionPage />} />
       <Route path="/tv/:gameCode/scores" element={<TVScoresPage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }
