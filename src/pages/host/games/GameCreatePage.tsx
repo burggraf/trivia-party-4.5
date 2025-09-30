@@ -24,7 +24,7 @@ const CATEGORIES = [
 
 export default function GameCreatePage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -39,10 +39,10 @@ export default function GameCreatePage() {
   const [timeLimit, setTimeLimit] = useState('30')
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       navigate('/host/login')
     }
-  }, [user, navigate])
+  }, [user, authLoading, navigate])
 
   const handleCategoryToggle = (category: string) => {
     setSelectedCategories(prev =>
@@ -107,6 +107,10 @@ export default function GameCreatePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading) {
+    return null
   }
 
   if (!user) {

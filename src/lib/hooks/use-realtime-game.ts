@@ -7,7 +7,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface GameEvent {
@@ -60,7 +60,7 @@ export function useRealtimeGame(options: UseRealtimeGameOptions): UseRealtimeGam
   useEffect(() => {
     if (!gameId) return
 
-    const supabase = createClient()
+    
     const channels: RealtimeChannel[] = []
 
     // Subscribe to game events channel
@@ -134,7 +134,7 @@ export function useGameBroadcast(gameId?: string) {
   useEffect(() => {
     if (!gameId) return
 
-    const supabase = createClient()
+    
     const gameChannel = supabase.channel(`game:${gameId}`)
 
     gameChannel.subscribe((status) => {
@@ -174,7 +174,7 @@ export function useTvBroadcast(gameId?: string) {
   useEffect(() => {
     if (!gameId) return
 
-    const supabase = createClient()
+    
     const tvChannel = supabase.channel(`tv:${gameId}`)
 
     tvChannel.subscribe((status) => {

@@ -7,7 +7,7 @@
 
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { shuffleAnswers } from '@/lib/game/answer-shuffling'
 import type { Database } from '@/types/database.types'
 import type { SubmitAnswerRequest } from '@/types/api.types'
@@ -42,7 +42,7 @@ export async function getCurrentQuestion(gameId: string): Promise<{
   question: QuestionWithAnswers | null
   error: Error | null
 }> {
-  const supabase = createClient()
+  
 
   try {
     // Get game's current question index
@@ -133,7 +133,7 @@ export async function getQuestion(gameQuestionId: string): Promise<{
   question: QuestionWithAnswers | null
   error: Error | null
 }> {
-  const supabase = createClient()
+  
 
   try {
     const { data: gameQuestion, error: questionError } = await supabase
@@ -218,7 +218,7 @@ export async function submitAnswer(
   isCorrect: boolean
   error: Error | null
 }> {
-  const supabase = createClient()
+  
 
   try {
     // Get current user
@@ -307,7 +307,7 @@ export async function submitAnswer(
  * Get all answer submissions for a question
  */
 export async function getAnswerSubmissions(gameQuestionId: string) {
-  const supabase = createClient()
+  
 
   const { data: submissions, error } = await supabase
     .from('answer_submissions')
@@ -330,7 +330,7 @@ export async function getAnswerSubmissions(gameQuestionId: string) {
  * Get team's answer for a question
  */
 export async function getTeamAnswer(gameQuestionId: string, teamId: string) {
-  const supabase = createClient()
+  
 
   const { data: submission, error } = await supabase
     .from('answer_submissions')
@@ -349,7 +349,7 @@ export async function hasTeamAnswered(
   gameQuestionId: string,
   teamId: string
 ): Promise<boolean> {
-  const supabase = createClient()
+  
 
   const { data, error } = await supabase
     .from('answer_submissions')
@@ -365,7 +365,7 @@ export async function hasTeamAnswered(
  * Get count of teams that have answered
  */
 export async function getAnswerCount(gameQuestionId: string): Promise<number> {
-  const supabase = createClient()
+  
 
   const { count } = await supabase
     .from('answer_submissions')
@@ -379,7 +379,7 @@ export async function getAnswerCount(gameQuestionId: string): Promise<number> {
  * Get question results (after reveal)
  */
 export async function getQuestionResults(gameQuestionId: string) {
-  const supabase = createClient()
+  
 
   // Get all submissions
   const { data: submissions, error } = await supabase

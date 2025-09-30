@@ -7,7 +7,7 @@
 
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { selectQuestions, recordQuestionUsage } from '@/lib/game/question-selection'
 import { generateGameCode } from '@/lib/utils/game-code'
 import type { CreateGameRequest, CreateGameResponse } from '@/types/api.types'
@@ -36,8 +36,6 @@ export interface CreateGameResult {
 export async function createGame(
   config: CreateGameRequest
 ): Promise<CreateGameResult> {
-  const supabase = createClient()
-
   try {
     // Get current user (must be host)
     const {
@@ -89,7 +87,7 @@ export async function createGame(
         .from('games')
         .select('id')
         .eq('game_code', gameCode)
-        .single()
+        .maybeSingle()
 
       if (!existing) break
 
@@ -224,7 +222,6 @@ export async function createGame(
  * Get game by ID with full details
  */
 export async function getGame(gameId: string) {
-  const supabase = createClient()
 
   const { data: game, error: gameError } = await supabase
     .from('games')
@@ -252,7 +249,6 @@ export async function getGame(gameId: string) {
  * Find game by game code (for players joining)
  */
 export async function findGameByCode(gameCode: string) {
-  const supabase = createClient()
 
   const { data: game, error } = await supabase
     .from('games')
@@ -271,7 +267,6 @@ export async function findGameByCode(gameCode: string) {
  * Get games for current host
  */
 export async function getHostGames() {
-  const supabase = createClient()
 
   const {
     data: { user },
@@ -298,7 +293,6 @@ export async function getHostGames() {
  * Update game configuration (only in 'setup' status)
  */
 export async function updateGame(gameId: string, updates: Partial<CreateGameRequest>) {
-  const supabase = createClient()
 
   const { data: game, error } = await supabase
     .from('games')
@@ -327,7 +321,6 @@ export async function updateGame(gameId: string, updates: Partial<CreateGameRequ
  * Changes status from 'setup' to 'active'
  */
 export async function startGame(gameId: string) {
-  const supabase = createClient()
 
   const { data: game, error } = await supabase
     .from('games')
@@ -347,7 +340,6 @@ export async function startGame(gameId: string) {
  * Pause game (FR-012)
  */
 export async function pauseGame(gameId: string) {
-  const supabase = createClient()
 
   const { data: game, error } = await supabase
     .from('games')
@@ -364,7 +356,6 @@ export async function pauseGame(gameId: string) {
  * Resume game (FR-013)
  */
 export async function resumeGame(gameId: string) {
-  const supabase = createClient()
 
   const { data: game, error } = await supabase
     .from('games')
@@ -381,7 +372,6 @@ export async function resumeGame(gameId: string) {
  * Advance to next question (FR-014)
  */
 export async function advanceQuestion(gameId: string) {
-  const supabase = createClient()
 
   // Get current game state
   const { data: game } = await supabase
@@ -415,7 +405,6 @@ export async function advanceQuestion(gameId: string) {
  * Reveal answer for current question (FR-015)
  */
 export async function revealAnswer(gameId: string) {
-  const supabase = createClient()
 
   // Get current question
   const { data: game } = await supabase
@@ -444,7 +433,6 @@ export async function revealAnswer(gameId: string) {
  * Navigate to specific question (FR-016)
  */
 export async function navigateToQuestion(gameId: string, targetIndex: number) {
-  const supabase = createClient()
 
   const { data: game, error } = await supabase
     .from('games')
@@ -460,7 +448,6 @@ export async function navigateToQuestion(gameId: string, targetIndex: number) {
  * End game (FR-017, FR-018)
  */
 export async function endGame(gameId: string) {
-  const supabase = createClient()
 
   const { data: game, error } = await supabase
     .from('games')
@@ -484,7 +471,6 @@ export async function endGame(gameId: string) {
  * Get current question for game
  */
 export async function getCurrentQuestion(gameId: string) {
-  const supabase = createClient()
 
   const { data: game } = await supabase
     .from('games')

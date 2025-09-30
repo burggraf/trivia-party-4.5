@@ -7,7 +7,7 @@
 
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 
 type Team = Database['public']['Tables']['teams']['Row']
@@ -22,7 +22,7 @@ type TeamMember = Database['public']['Tables']['team_members']['Row']
  * Implements FR-026 (create team), FR-027 (team size limits)
  */
 export async function createTeam(gameId: string, teamName: string) {
-  const supabase = createClient()
+  
 
   try {
     // Get current user
@@ -109,7 +109,7 @@ export async function createTeam(gameId: string, teamName: string) {
  * FR-030 (team size limits)
  */
 export async function joinTeam(teamId: string) {
-  const supabase = createClient()
+  
 
   try {
     // Get current user
@@ -201,7 +201,7 @@ export async function joinTeam(teamId: string) {
  * Get all teams for a game
  */
 export async function getTeams(gameId: string) {
-  const supabase = createClient()
+  
 
   const { data: teams, error } = await supabase
     .from('teams')
@@ -225,7 +225,7 @@ export async function getTeams(gameId: string) {
  * Get team by ID with members
  */
 export async function getTeam(teamId: string) {
-  const supabase = createClient()
+  
 
   const { data: team, error } = await supabase
     .from('teams')
@@ -253,7 +253,7 @@ export async function getTeam(teamId: string) {
  * Get current user's team for a game
  */
 export async function getMyTeam(gameId: string) {
-  const supabase = createClient()
+  
 
   const {
     data: { user },
@@ -289,7 +289,7 @@ export async function getMyTeam(gameId: string) {
  * Get team members
  */
 export async function getTeamMembers(teamId: string) {
-  const supabase = createClient()
+  
 
   const { data: members, error } = await supabase
     .from('team_members')
@@ -318,7 +318,7 @@ export async function getTeamMembers(teamId: string) {
  * Implements FR-082 (tie-breaking by cumulative time)
  */
 export async function getLeaderboard(gameId: string) {
-  const supabase = createClient()
+  
 
   const { data: teams, error } = await supabase
     .from('teams')
@@ -348,7 +348,7 @@ export async function updateTeamScore(
   pointsToAdd: number,
   timeToAdd: number
 ) {
-  const supabase = createClient()
+  
 
   // Get current team score
   const { data: team } = await supabase

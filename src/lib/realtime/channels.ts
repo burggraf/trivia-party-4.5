@@ -10,7 +10,7 @@
  * 3. tv:{game_id} - TV-specific updates (teams_answered_count)
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { GameEventType } from '@/types/game.types'
 
@@ -21,7 +21,7 @@ import type { GameEventType } from '@/types/game.types'
  * @returns Realtime channel for game events
  */
 export function createGameChannel(gameId: string): RealtimeChannel {
-  const supabase = createClient()
+  
 
   return supabase.channel(`game:${gameId}`, {
     config: {
@@ -45,7 +45,7 @@ export function createPresenceChannel(
   playerId: string,
   displayName: string
 ): RealtimeChannel {
-  const supabase = createClient()
+  
 
   return supabase.channel(`team:${teamId}:presence`, {
     config: {
@@ -63,7 +63,7 @@ export function createPresenceChannel(
  * @returns Realtime channel for TV-specific updates
  */
 export function createTVChannel(gameId: string): RealtimeChannel {
-  const supabase = createClient()
+  
 
   return supabase.channel(`tv:${gameId}`, {
     config: {

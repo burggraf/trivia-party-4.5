@@ -7,7 +7,7 @@
  * Uses Supabase RPC to call Postgres function defined in migration 012.
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { Question } from '@/types/game.types'
 
 export interface QuestionSelectionResult {
@@ -35,7 +35,6 @@ export async function selectQuestions(
   categories: string[],
   count: number
 ): Promise<QuestionSelectionResult> {
-  const supabase = createClient()
 
   // First, check available counts
   const { data: counts, error: countError } = await supabase.rpc(
@@ -108,7 +107,6 @@ export async function recordQuestionUsage(
   gameId: string,
   questionIds: string[]
 ): Promise<void> {
-  const supabase = createClient()
 
   const usageRecords = questionIds.map((questionId) => ({
     host_id: hostId,
@@ -129,7 +127,6 @@ export async function recordQuestionUsage(
  * @returns Array of unique category names
  */
 export async function getAvailableCategories(): Promise<string[]> {
-  const supabase = createClient()
 
   const { data, error } = await supabase
     .from('questions')

@@ -7,7 +7,7 @@
 
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { User, AuthError } from '@supabase/supabase-js'
 
 // ============================================================================
@@ -43,8 +43,6 @@ export interface AnonymousAuthParams {
  * Creates auth.users entry and hosts table entry via trigger
  */
 export async function signUpHost(params: SignUpHostParams): Promise<AuthResult> {
-  const supabase = createClient()
-
   const { data, error } = await supabase.auth.signUp({
     email: params.email,
     password: params.password,
@@ -81,8 +79,6 @@ export async function signUpHost(params: SignUpHostParams): Promise<AuthResult> 
  * Sign in existing host
  */
 export async function signInHost(params: SignInParams): Promise<AuthResult> {
-  const supabase = createClient()
-
   const { data, error } = await supabase.auth.signInWithPassword({
     email: params.email,
     password: params.password,
@@ -125,8 +121,6 @@ export async function signInHost(params: SignInParams): Promise<AuthResult> {
  * Creates auth.users entry and player_profiles table entry via trigger
  */
 export async function signUpPlayer(params: SignUpHostParams): Promise<AuthResult> {
-  const supabase = createClient()
-
   const { data, error } = await supabase.auth.signUp({
     email: params.email,
     password: params.password,
@@ -163,8 +157,6 @@ export async function signUpPlayer(params: SignUpHostParams): Promise<AuthResult
  * Sign in existing player
  */
 export async function signInPlayer(params: SignInParams): Promise<AuthResult> {
-  const supabase = createClient()
-
   const { data, error } = await supabase.auth.signInWithPassword({
     email: params.email,
     password: params.password,
@@ -182,8 +174,6 @@ export async function signInPlayer(params: SignInParams): Promise<AuthResult> {
  * Creates anonymous session with custom display name
  */
 export async function signInAnonymous(params: AnonymousAuthParams): Promise<AuthResult> {
-  const supabase = createClient()
-
   // Create anonymous user
   const { data, error } = await supabase.auth.signInAnonymously({
     options: {
@@ -224,8 +214,6 @@ export async function signInAnonymous(params: AnonymousAuthParams): Promise<Auth
  * Sign out current user
  */
 export async function signOut(): Promise<{ error: AuthError | null }> {
-  const supabase = createClient()
-
   const { error } = await supabase.auth.signOut()
 
   return { error }
@@ -236,8 +224,6 @@ export async function signOut(): Promise<{ error: AuthError | null }> {
  * Returns null if not authenticated
  */
 export async function getCurrentUser(): Promise<User | null> {
-  const supabase = createClient()
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -249,8 +235,6 @@ export async function getCurrentUser(): Promise<User | null> {
  * Get current session
  */
 export async function getSession() {
-  const supabase = createClient()
-
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -262,8 +246,6 @@ export async function getSession() {
  * Check if user is a host
  */
 export async function isHost(userId: string): Promise<boolean> {
-  const supabase = createClient()
-
   const { data, error } = await supabase
     .from('hosts')
     .select('id')
@@ -277,8 +259,6 @@ export async function isHost(userId: string): Promise<boolean> {
  * Get player profile
  */
 export async function getPlayerProfile(userId: string) {
-  const supabase = createClient()
-
   const { data, error } = await supabase
     .from('player_profiles')
     .select('*')
@@ -299,8 +279,6 @@ export async function updatePlayerProfile(
   userId: string,
   updates: { display_name?: string }
 ) {
-  const supabase = createClient()
-
   const { data, error } = await supabase
     .from('player_profiles')
     .update(updates)
@@ -318,8 +296,6 @@ export async function updatePlayerProfile(
 export function onAuthStateChange(
   callback: (event: string, session: any) => void
 ) {
-  const supabase = createClient()
-
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(callback)
