@@ -1,34 +1,102 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/lib/hooks/use-auth'
+import { getGame, getCurrentQuestion, submitAnswer } from '@/lib/services/game-service'
+import { getMyTeam } from '@/lib/services/team-service'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import type { Database } from '@/types/database.types'
+
+type Game = Database['public']['Tables']['games']['Row']
+type Team = Database['public']['Tables']['teams']['Row']
+
+interface QuestionData {
+  id: string
+  gameQuestionId: string
+  category: string
+  question: string
+  answers: string[]
+  answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' }
+  timeLimit: number
+}
 
 export default function GamePage() {
   const { gameId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   // Game state
-  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [game, setGame] = useState<Game | null>(null)
+  const [team, setTeam] = useState<Team | null>(null)
+  const [question, setQuestion] = useState<QuestionData | null>(null)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [isAnswered, setIsAnswered] = useState(false)
   const [isRevealed, setIsRevealed] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(30)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  // Mock question data - will be replaced with real-time data
-  const mockQuestion = {
-    round: 1,
-    questionNumber: currentQuestion + 1,
-    text: 'What is the capital of France?',
-    answers: ['Paris', 'London', 'Berlin', 'Madrid'],
-    correctAnswer: 'Paris',
-    category: 'Geography',
-    timeLimit: 30,
-  }
+  // Load game data
+  useEffect(() => {
+    if (!gameId || !user) return
 
-  const totalQuestions = 15
-  const teamName = 'Quiz Wizards'
+    const loadGameData = async () => {
+      try {
+        setLoading(true)
+
+        // Load game
+        const { game: gameData, error: gameError } = await getGame(gameId)
+        if (gameError || !gameData) {
+          setError('Failed to load game')
+          return
+        }
+        setGame(gameData)
+        setTimeRemaining(gameData.time_limit_seconds)
+
+        // Load team
+        const { team: teamData, error: teamError } = await getMyTeam(gameId)
+        if (teamError || !teamData) {
+          setError('Failed to load team')
+          return
+        }
+        setTeam(teamData as Team)
+
+        // Load current question
+        const { question: questionData, error: questionError } = await getCurrentQuestion(gameId)
+        if (questionData) {
+          const gameQuestion = questionData as any
+          const q = gameQuestion.question
+          const answers = [q.a, q.b, q.c, q.d]
+
+          // Create map from answer text to database key (a/b/c/d)
+          const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
+          answers.forEach((answer, idx) => {
+            answersMap[answer] = ['a', 'b', 'c', 'd'][idx] as 'a' | 'b' | 'c' | 'd'
+          })
+
+          setQuestion({
+            id: q.id,
+            gameQuestionId: gameQuestion.id,
+            category: q.category,
+            question: q.question,
+            answers,
+            answersMap,
+            timeLimit: gameData.time_limit_seconds,
+          })
+        }
+
+        setLoading(false)
+      } catch (err) {
+        console.error('Error loading game:', err)
+        setError('Failed to load game data')
+        setLoading(false)
+      }
+    }
+
+    loadGameData()
+  }, [gameId, user])
 
   // Timer countdown
   useEffect(() => {
@@ -41,16 +109,38 @@ export default function GamePage() {
   }, [timeRemaining, isAnswered, isRevealed])
 
   const handleAnswerSelect = async (answer: string) => {
-    if (isAnswered || isRevealed) return
+    if (isAnswered || isRevealed || !question || !team || !game) return
 
     setSelectedAnswer(answer)
     setIsAnswered(true)
 
     try {
-      // TODO: Submit answer to API
-      console.log('Submitting answer:', answer)
+      // Map answer text to database key (a/b/c/d)
+      const selectedAnswerKey = question.answersMap[answer]
+
+      // Calculate time taken (time limit - remaining time)
+      const answerTimeMs = (game.time_limit_seconds - timeRemaining) * 1000
+
+      // Submit answer
+      const { error: submitError } = await submitAnswer({
+        gameQuestionId: question.gameQuestionId,
+        teamId: team.id,
+        selectedAnswer: selectedAnswerKey,
+        answerTimeMs,
+      })
+
+      if (submitError) {
+        // Show error message
+        setError(submitError.message)
+        // Only reset state if it's not a "already answered" error
+        if (!submitError.message.includes('already answered')) {
+          setIsAnswered(false)
+          setSelectedAnswer(null)
+        }
+      }
     } catch (err) {
       console.error('Failed to submit answer:', err)
+      setError('Failed to submit answer')
       setIsAnswered(false)
       setSelectedAnswer(null)
     }
@@ -61,15 +151,6 @@ export default function GamePage() {
       return 'outline'
     }
 
-    if (isRevealed) {
-      if (answer === mockQuestion.correctAnswer) {
-        return 'default'
-      }
-      if (answer === selectedAnswer && answer !== mockQuestion.correctAnswer) {
-        return 'destructive'
-      }
-    }
-
     if (answer === selectedAnswer) {
       return 'default'
     }
@@ -78,14 +159,38 @@ export default function GamePage() {
   }
 
   const getAnswerButtonClassName = (answer: string) => {
-    if (isRevealed && answer === mockQuestion.correctAnswer) {
-      return 'bg-green-600 hover:bg-green-700 border-green-600'
-    }
-    if (isRevealed && answer === selectedAnswer && answer !== mockQuestion.correctAnswer) {
-      return 'bg-red-600 hover:bg-red-700 border-red-600'
-    }
+    // Note: We don't show correct/incorrect until host reveals
     return ''
   }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading game...</p>
+      </div>
+    )
+  }
+
+  if (error || !game || !team || !question) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertDescription>{error || 'Failed to load game'}</AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const totalQuestions = game.num_rounds * game.questions_per_round
+  const currentRound = Math.floor(game.current_question_index / game.questions_per_round) + 1
+  const questionNumber = game.current_question_index + 1
 
   return (
     <div className="min-h-screen bg-background">
@@ -94,7 +199,7 @@ export default function GamePage() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <Badge variant="secondary">
-              Question {mockQuestion.questionNumber} of {totalQuestions}
+              Question {questionNumber} of {totalQuestions}
             </Badge>
             <Badge variant={timeRemaining <= 10 ? 'destructive' : 'outline'} className="text-lg px-3 py-1">
               {timeRemaining}s
@@ -102,17 +207,17 @@ export default function GamePage() {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Team: {teamName}</p>
+              <p className="text-sm text-muted-foreground">Team: {team.team_name}</p>
             </div>
-            <Badge variant="outline">Round {mockQuestion.round}</Badge>
+            <Badge variant="outline">Round {currentRound}</Badge>
           </div>
         </div>
 
         {/* Question */}
         <Card className="mb-6">
           <CardHeader>
-            <CardDescription className="text-base">{mockQuestion.category}</CardDescription>
-            <CardTitle className="text-2xl leading-tight">{mockQuestion.text}</CardTitle>
+            <CardDescription className="text-base">{question.category}</CardDescription>
+            <CardTitle className="text-2xl leading-tight">{question.question}</CardTitle>
           </CardHeader>
         </Card>
 
@@ -121,22 +226,6 @@ export default function GamePage() {
           <Alert className="mb-6">
             <AlertDescription>
               Answer submitted! Waiting for other teams...
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {isRevealed && selectedAnswer === mockQuestion.correctAnswer && (
-          <Alert className="mb-6 bg-green-50 border-green-500">
-            <AlertDescription className="text-green-900">
-              Correct! Your team earned a point!
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {isRevealed && selectedAnswer !== mockQuestion.correctAnswer && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>
-              Incorrect. The correct answer was: {mockQuestion.correctAnswer}
             </AlertDescription>
           </Alert>
         )}
@@ -150,7 +239,7 @@ export default function GamePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {mockQuestion.answers.map((answer) => (
+            {question.answers.map((answer) => (
               <Button
                 key={answer}
                 onClick={() => handleAnswerSelect(answer)}

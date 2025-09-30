@@ -504,3 +504,93 @@ export async function getCurrentQuestion(gameId: string) {
 
   return { question: gameQuestion, error }
 }
+
+// ============================================================================
+// Answer Submission (FR-043)
+// ============================================================================
+
+export interface SubmitAnswerRequest {
+  gameQuestionId: string
+  teamId: string
+  selectedAnswer: 'a' | 'b' | 'c' | 'd'
+  answerTimeMs: number
+}
+
+export interface SubmitAnswerResult {
+  submission: any | null
+  isCorrect: boolean
+  error: Error | null
+}
+
+/**
+ * Submit answer for current question
+ * First submission from any team member locks the answer (FR-043)
+ * Returns 409 error if team has already answered
+ */
+export async function submitAnswer(
+  request: SubmitAnswerRequest
+): Promise<SubmitAnswerResult> {
+  try {
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return {
+        submission: null,
+        isCorrect: false,
+        error: new Error('You must be logged in to submit an answer'),
+      }
+    }
+
+    // Determine if answer is correct (in DB, 'a' is always correct)
+    const isCorrect = request.selectedAnswer === 'a'
+
+    // Insert answer submission
+    const { data: submission, error } = await supabase
+      .from('answer_submissions')
+      .insert({
+        game_question_id: request.gameQuestionId,
+        team_id: request.teamId,
+        submitted_by: user.id,
+        selected_answer: request.selectedAnswer,
+        is_correct: isCorrect,
+        answer_time_ms: request.answerTimeMs,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      // Check for unique constraint violation (team already answered)
+      if (error.code === '23505') {
+        return {
+          submission: null,
+          isCorrect: false,
+          error: new Error('Your team has already answered this question'),
+        }
+      }
+
+      console.error('Failed to submit answer:', error)
+      return {
+        submission: null,
+        isCorrect: false,
+        error: new Error('Failed to submit answer'),
+      }
+    }
+
+    return {
+      submission,
+      isCorrect,
+      error: null,
+    }
+  } catch (error) {
+    console.error('Unexpected error in submitAnswer:', error)
+    return {
+      submission: null,
+      isCorrect: false,
+      error: error as Error,
+    }
+  }
+}
