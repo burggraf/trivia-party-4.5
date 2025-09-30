@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useGame } from '@/lib/hooks/use-game'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,8 +30,6 @@ export default function HostDashboardPage() {
 
     const fetchGames = async () => {
       try {
-        const supabase = createClient()
-
         // host.id is the same as auth.users.id
         const { data: gamesData, error: gamesError } = await supabase
           .from('games')
@@ -54,7 +52,6 @@ export default function HostDashboardPage() {
   }, [user, authLoading, navigate])
 
   const handleSignOut = async () => {
-    const supabase = createClient()
     await supabase.auth.signOut()
     navigate('/')
   }
