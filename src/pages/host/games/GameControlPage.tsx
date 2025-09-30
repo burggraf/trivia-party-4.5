@@ -168,6 +168,7 @@ export default function GameControlPage() {
           answers: [q.a, q.b, q.c, q.d],
           correctAnswerIndex: 0,
         })
+        setIsAnswerRevealed(false) // Hide answer for new question
       }
     }
     setActionLoading(false)
@@ -186,6 +187,7 @@ export default function GameControlPage() {
       }
     } else if (updatedGame) {
       setGame(updatedGame)
+      setIsAnswerRevealed(false) // Hide answer for new question
       // Reload question
       const { question: questionData } = await getCurrentQuestion(gameId)
       if (questionData) {
