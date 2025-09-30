@@ -1,47 +1,124 @@
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/lib/hooks/use-auth'
+import { getGame } from '@/lib/services/game-service'
+import { getTeams, getTeamMembers } from '@/lib/services/team-service'
+// import { useRealtimeGame } from '@/lib/hooks/use-realtime-game'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import type { Database } from '@/types/database.types'
+
+type Game = Database['public']['Tables']['games']['Row']
+type Team = Database['public']['Tables']['teams']['Row']
+type TeamMember = Database['public']['Tables']['team_members']['Row'] & {
+  player_profiles?: {
+    display_name: string
+  } | null
+}
 
 export default function LobbyPage() {
-  const { gameCode } = useParams()
+  const [searchParams] = useSearchParams()
+  const gameId = searchParams.get('gameId')
+  const teamId = searchParams.get('teamId')
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  const [game, setGame] = useState<Game | null>(null)
+  const [teams, setTeams] = useState<Team[]>([])
+  const [teamMembers, setTeamMembers] = useState<Record<string, TeamMember[]>>({})
+  const [currentTeam, setCurrentTeam] = useState<Team | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  // Mock data - will be replaced with real-time updates
-  const mockGameData = {
-    name: 'Monday Night Trivia',
-    status: 'waiting',
-    totalRounds: 3,
-    questionsPerRound: 5,
-  }
-
-  const mockTeams = [
-    {
-      name: 'Quiz Wizards',
-      players: ['Alice', 'Bob', 'Charlie'],
-    },
-    {
-      name: 'Brain Trust',
-      players: ['David', 'Eve', 'Frank', 'Grace'],
-    },
-    {
-      name: 'Trivia Masters',
-      players: ['Henry', 'Iris'],
-    },
-  ]
-
-  const currentTeam = 'Quiz Wizards'
-  const currentPlayer = 'Alice'
+  // TODO: Subscribe to real-time game events
+  // const { gameEvents } = useRealtimeGame({
+  //   gameId: gameId || undefined,
+  //   onGameEvent: (event) => {
+  //     if (event.type === 'game_started') {
+  //       // Navigate to game page when game starts
+  //       navigate(`/player/game/${gameId}`)
+  //     }
+  //   },
+  // })
 
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 500)
+    if (!gameId || !teamId) {
+      setError('Missing game or team information')
+      setLoading(false)
+      return
+    }
 
-    // TODO: Subscribe to real-time game state changes
-    // Listen for game start event and navigate to game page
-  }, [gameCode, navigate])
+    const loadLobbyData = async () => {
+      try {
+        console.log('[Lobby] Starting to load data for game:', gameId)
+        setLoading(true)
+
+        // Load game data
+        console.log('[Lobby] Loading game...')
+        const { game: gameData, error: gameError } = await getGame(gameId)
+        if (gameError) {
+          console.error('[Lobby] Game error:', gameError)
+          setError('Failed to load game: ' + gameError.message)
+          setLoading(false)
+          return
+        }
+        if (!gameData) {
+          console.error('[Lobby] No game data returned')
+          setError('Failed to load game')
+          setLoading(false)
+          return
+        }
+        console.log('[Lobby] Game loaded:', gameData.name)
+        setGame(gameData)
+
+        // Load all teams
+        console.log('[Lobby] Loading teams...')
+        const { teams: teamsData, error: teamsError } = await getTeams(gameId)
+        if (teamsError) {
+          console.error('[Lobby] Teams error:', teamsError)
+          setError('Failed to load teams: ' + teamsError.message)
+          setLoading(false)
+          return
+        }
+        console.log('[Lobby] Teams loaded:', teamsData.length)
+        setTeams(teamsData)
+
+        // Load team members for each team
+        console.log('[Lobby] Loading team members...')
+        const membersMap: Record<string, TeamMember[]> = {}
+        for (const team of teamsData) {
+          console.log('[Lobby] Loading members for team:', team.team_name)
+          const { members, error: membersError } = await getTeamMembers(team.id)
+          if (membersError) {
+            console.error('[Lobby] Members error for team', team.team_name, ':', membersError)
+          } else if (members) {
+            console.log('[Lobby] Members loaded for team', team.team_name, ':', members.length)
+            membersMap[team.id] = members as TeamMember[]
+          }
+        }
+        setTeamMembers(membersMap)
+
+        // Find current team
+        const team = teamsData.find((t) => t.id === teamId)
+        if (team) {
+          console.log('[Lobby] Current team found:', team.team_name)
+          setCurrentTeam(team)
+        } else {
+          console.error('[Lobby] Current team not found in teams list')
+        }
+
+        console.log('[Lobby] All data loaded successfully')
+        setLoading(false)
+      } catch (err) {
+        console.error('[Lobby] Unexpected error loading lobby:', err)
+        setError('Failed to load lobby data: ' + (err instanceof Error ? err.message : 'Unknown error'))
+        setLoading(false)
+      }
+    }
+
+    loadLobbyData()
+  }, [gameId, teamId])
 
   if (loading) {
     return (
@@ -51,27 +128,61 @@ export default function LobbyPage() {
     )
   }
 
+  if (error || !game || !currentTeam) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertDescription>
+                {error || 'Failed to load game data'}
+              </AlertDescription>
+            </Alert>
+            <Link
+              to="/player/join"
+              className="mt-4 inline-block text-sm text-muted-foreground hover:text-foreground"
+            >
+              ← Back to Join Game
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const totalPlayers = teams.reduce((sum, team) => {
+    const members = teamMembers[team.id] || []
+    return sum + members.length
+  }, 0)
+
+  const currentPlayerName = user?.user_metadata?.display_name || 'You'
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">{mockGameData.name}</h1>
+          <h1 className="text-3xl font-bold mb-2">{game.name}</h1>
           <div className="flex items-center justify-center gap-3 mb-4">
             <Badge variant="outline" className="text-lg px-4 py-1">
-              Game Code: {gameCode}
+              Game Code: {game.game_code}
             </Badge>
-            <Badge className="text-base">Waiting to Start</Badge>
+            <Badge className="text-base">
+              {game.status === 'setup' ? 'Waiting to Start' : game.status === 'active' ? 'In Progress' : game.status}
+            </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {mockGameData.totalRounds} rounds • {mockGameData.questionsPerRound} questions per round
+            {game.num_rounds} rounds • {game.questions_per_round} questions per round
           </p>
         </div>
 
         {/* Current Player Info */}
         <Alert className="mb-6">
           <AlertDescription>
-            You are <strong>{currentPlayer}</strong> on team <strong>{currentTeam}</strong>
+            You are <strong>{currentPlayerName}</strong> on team <strong>{currentTeam.team_name}</strong>
           </AlertDescription>
         </Alert>
 
@@ -80,33 +191,51 @@ export default function LobbyPage() {
           <CardHeader>
             <CardTitle>Teams & Players</CardTitle>
             <CardDescription>
-              {mockTeams.length} teams • {mockTeams.reduce((sum, team) => sum + team.players.length, 0)} players waiting
+              {teams.length} {teams.length === 1 ? 'team' : 'teams'} • {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'} waiting
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {mockTeams.map((team) => (
-              <div
-                key={team.name}
-                className={`p-4 rounded-lg border ${
-                  team.name === currentTeam ? 'bg-primary/5 border-primary' : 'bg-card'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-lg">{team.name}</h3>
-                  <Badge variant="secondary">{team.players.length} players</Badge>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {team.players.map((player) => (
-                    <Badge
-                      key={player}
-                      variant={player === currentPlayer ? 'default' : 'outline'}
-                    >
-                      {player}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            ))}
+            {teams.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">No teams yet</p>
+            ) : (
+              teams.map((team) => {
+                const members = teamMembers[team.id] || []
+                const isCurrentTeam = team.id === teamId
+
+                return (
+                  <div
+                    key={team.id}
+                    className={`p-4 rounded-lg border ${
+                      isCurrentTeam ? 'bg-primary/5 border-primary' : 'bg-card'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-lg">{team.team_name}</h3>
+                      <Badge variant="secondary">{members.length} {members.length === 1 ? 'player' : 'players'}</Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {members.length === 0 ? (
+                        <span className="text-sm text-muted-foreground">No players yet</span>
+                      ) : (
+                        members.map((member) => {
+                          const displayName = member.player_profiles?.display_name || 'Player'
+                          const isCurrentPlayer = member.player_id === user?.id
+
+                          return (
+                            <Badge
+                              key={member.id}
+                              variant={isCurrentPlayer ? 'default' : 'outline'}
+                            >
+                              {displayName}
+                            </Badge>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </CardContent>
         </Card>
 
@@ -118,7 +247,7 @@ export default function LobbyPage() {
                 Waiting for the host to start the game...
               </p>
               <p className="text-sm text-muted-foreground">
-                More players can join using game code <strong>{gameCode}</strong>
+                More players can join using game code <strong>{game.game_code}</strong>
               </p>
             </div>
           </CardContent>

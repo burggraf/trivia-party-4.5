@@ -34,7 +34,7 @@ export default function App() {
       <Route path="/player/register" element={<PlayerRegisterPage />} />
       <Route path="/player/forgot-password" element={<PlayerForgotPasswordPage />} />
       <Route path="/player/join" element={<JoinGamePage />} />
-      <Route path="/player/lobby/:gameCode" element={<LobbyPage />} />
+      <Route path="/player/lobby" element={<LobbyPage />} />
       <Route path="/player/game/:gameId" element={<GamePage />} />
       <Route path="/tv/:gameCode/lobby" element={<TVLobbyPage />} />
       <Route path="/tv/:gameCode/question" element={<TVQuestionPage />} />
