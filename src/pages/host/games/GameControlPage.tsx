@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { getGame, getCurrentQuestion, startGame, pauseGame, resumeGame, advanceQuestion, revealAnswer, endGame } from '@/lib/services/game-service'
 import { getTeams } from '@/lib/services/team-service'
+import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -188,6 +189,45 @@ export default function GameControlPage() {
     }
   }
 
+  const handlePreviousQuestion = async () => {
+    if (!gameId || !game || game.current_question_index === 0) return
+    setActionLoading(true)
+
+    try {
+      // Update game to previous question index
+      const { data: updatedGame, error } = await supabase
+        .from('games')
+        .update({ current_question_index: game.current_question_index - 1 })
+        .eq('id', gameId)
+        .select()
+        .single()
+
+      if (error) {
+        setError('Failed to go to previous question')
+      } else if (updatedGame) {
+        setGame(updatedGame)
+        // Reload question
+        const { question: questionData } = await getCurrentQuestion(gameId)
+        if (questionData) {
+          const gameQuestion = questionData as any
+          const q = gameQuestion.question
+          setQuestion({
+            id: q.id,
+            category: q.category,
+            question: q.question,
+            answers: [q.a, q.b, q.c, q.d],
+            correctAnswerIndex: 0,
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Error navigating to previous question:', err)
+      setError('Failed to navigate to previous question')
+    }
+
+    setActionLoading(false)
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -312,15 +352,26 @@ export default function GameControlPage() {
                       Reveal Answer
                     </Button>
 
-                    <Button
-                      onClick={handleAdvanceQuestion}
-                      className="w-full"
-                      size="lg"
-                      variant="outline"
-                      disabled={actionLoading}
-                    >
-                      {game.current_question_index < (game.num_rounds * game.questions_per_round) - 1 ? 'Next Question' : 'View Final Scores'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handlePreviousQuestion}
+                        className="flex-1"
+                        size="lg"
+                        variant="outline"
+                        disabled={actionLoading || game.current_question_index === 0}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        onClick={handleAdvanceQuestion}
+                        className="flex-1"
+                        size="lg"
+                        variant="outline"
+                        disabled={actionLoading}
+                      >
+                        {game.current_question_index < (game.num_rounds * game.questions_per_round) - 1 ? 'Next' : 'Scores'}
+                      </Button>
+                    </div>
 
                     <Button
                       onClick={handlePause}

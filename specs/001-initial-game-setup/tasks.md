@@ -106,43 +106,43 @@ supabase/            # Database migrations
 
 ## Phase 3.2: Database Migrations (T009-T019)
 
-- [ ] **T009** Create hosts table migration in `supabase/migrations/001_create_hosts.sql`
+- [X] **T009** Create hosts table migration in `supabase/migrations/001_create_hosts.sql`
   - Extends Supabase auth.users with host-specific fields
   - Fields: id (FK to auth.users), email, display_name, created_at, updated_at
   - RLS: Host can only view/update their own record
 
-- [ ] **T010** Create games table migration in `supabase/migrations/002_create_games.sql`
+- [X] **T010** Create games table migration in `supabase/migrations/002_create_games.sql`
   - Main game entity with configuration
   - Fields: id, host_id, game_code (unique), name, venue_name, venue_location, scheduled_at, status, num_rounds, questions_per_round, time_limit_seconds, min_players_per_team, max_players_per_team, sound_effects_enabled, current_question_index, started_at, completed_at, created_at, updated_at
   - RLS: Host can manage their games, players can view active games by code
 
-- [ ] **T011** Create rounds table migration in `supabase/migrations/003_create_rounds.sql`
+- [X] **T011** Create rounds table migration in `supabase/migrations/003_create_rounds.sql`
   - Round configuration per game
   - Fields: id, game_id, round_number, categories (text[]), created_at
   - RLS: Follows game access rules
 
-- [ ] **T012** Create game_questions table migration in `supabase/migrations/004_create_game_questions.sql`
+- [X] **T012** Create game_questions table migration in `supabase/migrations/004_create_game_questions.sql`
   - Question instances with randomization seed
   - Fields: id, game_id, round_id, question_id, display_order, randomization_seed, revealed_at, created_at
   - RLS: Follows game access rules
 
-- [ ] **T013** Create teams table migration in `supabase/migrations/005_create_teams.sql`
+- [X] **T013** Create teams table migration in `supabase/migrations/005_create_teams.sql`
   - Teams within games
   - Fields: id, game_id, team_name, score, cumulative_answer_time_ms, created_at, updated_at
   - RLS: Public read for active games, players can create/join teams
 
-- [ ] **T014** Create team_members table migration in `supabase/migrations/006_create_team_members.sql`
+- [X] **T014** Create team_members table migration in `supabase/migrations/006_create_team_members.sql`
   - Players on teams (many-to-many)
   - Fields: id, team_id, player_id, joined_at
   - RLS: Public read, players can join teams
 
-- [ ] **T015** Create answer_submissions table migration in `supabase/migrations/007_create_answer_submissions.sql`
+- [X] **T015** Create answer_submissions table migration in `supabase/migrations/007_create_answer_submissions.sql`
   - Team answers with first-submission lock
   - Fields: id, game_question_id, team_id, submitted_by, selected_answer, is_correct, answer_time_ms, submitted_at
   - UNIQUE constraint: (game_question_id, team_id)
   - RLS: Team members can view/create for their team
 
-- [ ] **T016** Create question_usage table migration in `supabase/migrations/008_create_question_usage.sql`
+- [X] **T016** Create question_usage table migration in `supabase/migrations/008_create_question_usage.sql`
   - **Purpose**: Tracks questions used by each host across ALL their games to prevent reuse (FR-006)
   - **Schema**:
     ```sql
@@ -173,24 +173,24 @@ supabase/            # Database migrations
   - **Validation**: Query `question_usage` table, verify indexes exist with `\d+ question_usage`, test RLS policies
   - **FR Coverage**: FR-006 (question reuse prevention across all host's games)
 
-- [ ] **T017** Create player_profiles table migration in `supabase/migrations/009_create_player_profiles.sql`
+- [X] **T017** Create player_profiles table migration in `supabase/migrations/009_create_player_profiles.sql`
   - Player metadata beyond auth
   - Fields: id (FK to auth.users), display_name, is_anonymous, games_played, games_won, total_correct_answers, total_questions_answered, created_at, updated_at
   - RLS: Players can view/update their own profile
 
-- [ ] **T018** Create leaderboard_cache table migration in `supabase/migrations/010_create_leaderboard_cache.sql`
+- [X] **T018** Create leaderboard_cache table migration in `supabase/migrations/010_create_leaderboard_cache.sql`
   - Aggregated player statistics per venue
   - Fields: id, venue_name, player_id, games_played, games_won, win_rate, avg_score, accuracy, rank, last_updated
   - Materialized view refreshed after game completion
 
-- [ ] **T019** Create database indexes migration in `supabase/migrations/011_create_indexes.sql`
+- [X] **T019** Create database indexes migration in `supabase/migrations/011_create_indexes.sql`
   - idx_question_usage_host_question on (host_id, question_id)
   - idx_games_game_code on game_code
   - idx_answer_submissions_game_question on game_question_id
   - idx_teams_game_id on game_id
   - idx_game_questions_display_order on (game_id, display_order)
 
-- [ ] **T019a** Create materialized views migration in `supabase/migrations/012_create_materialized_views.sql`
+- [X] **T019a** Create materialized views migration in `supabase/migrations/012_create_materialized_views.sql`
   - **File**: `supabase/migrations/012_create_materialized_views.sql`
   - **Schema**:
     ```sql
@@ -289,7 +289,7 @@ supabase/            # Database migrations
   - Sorts by score (desc), then time (asc) for tie-breaking (FR-076)
   - Calculates accuracy percentages
 
-- [ ] **T025** [P] Implement question selection utility in `src/lib/game/question-selection.ts`
+- [X] **T025** [P] Implement question selection utility in `src/lib/game/question-selection.ts`
   - **Purpose**: Select questions excluding previously used ones, handle category exhaustion (FR-006, FR-007, FR-007a)
   - **Core function**:
     ```typescript
@@ -361,7 +361,7 @@ supabase/            # Database migrations
   - **FR Coverage**: FR-006 (reuse prevention), FR-007 (category exhaustion), FR-008 (auto-supplement)
   - **Dependencies**: T016 (question_usage table)
 
-- [ ] **T025a** [P] Implement answer shuffling utility in `src/lib/game/answer-shuffling.ts`
+- [X] **T025a** [P] Implement answer shuffling utility in `src/lib/game/answer-shuffling.ts`
   - **Purpose**: Deterministic shuffle using stored seed for consistent order across all clients (FR-009, FR-037)
   - **Install dependency**: `npm install seedrandom && npm install -D @types/seedrandom`
   - **Core function**:
@@ -424,7 +424,7 @@ supabase/            # Database migrations
 
 ### Auth Services (T029-T030)
 
-- [ ] **T029** [P] Implement host authentication service in `src/lib/services/auth-service.ts`
+- [X] **T029** [P] Implement host authentication service in `src/lib/services/auth-service.ts`
   - **Purpose**: Host login with email/password and session management (FR-013, FR-014, FR-019, FR-020)
   - **Functions to implement**:
     ```typescript
@@ -477,7 +477,7 @@ supabase/            # Database migrations
   - **FR Coverage**: FR-019 (host authentication), FR-020 (session management)
   - **Dependencies**: T009 (hosts table), Supabase Auth configured
 
-- [ ] **T030** [P] Implement player authentication with email/password and anonymous session support
+- [X] **T030** [P] Implement player authentication with email/password and anonymous session support
   - **Purpose**: Player login options including 30-day anonymous sessions (FR-021, FR-021a, FR-022)
   - **File**: `src/lib/services/auth-service.ts` (add to existing file from T029)
   - **Functions to implement**:
@@ -590,7 +590,7 @@ supabase/            # Database migrations
   - Teams list with answer status
   - Real-time team answer count (needs T055-T058)
 
-- [ ] **T038a** [P] Add backward navigation support to GameControlPage with answer preservation
+- [X] **T038a** [P] Add backward navigation support to GameControlPage with answer preservation
   - **Purpose**: Allow host to navigate to previous questions while preserving submitted answers (FR-061)
   - **File**: `src/pages/host/games/GameControlPage.tsx`
   - **Changes**:
@@ -859,16 +859,15 @@ supabase/            # Database migrations
 
 ## Progress Summary
 
-**Completed**: 21/73 tasks (28.8%)
-- ✅ Phase 3.1: Setup (8/8)
-- ✅ Phase 3.3: Service Layer (13/15) - Core game/team services done
-- ✅ Phase 3.4: Pages (10/20) - Host and player pages mostly done
+**Completed**: 38/74 tasks (51.4%)
+- ✅ Phase 3.1: Setup (8/8) - Complete
+- ✅ Phase 3.2: Database migrations (12/12) - Complete
+- ✅ Phase 3.3: Service Layer (15/15) - Complete
+- ✅ Phase 3.4: Pages (11/21) - Host and player pages mostly done
 
 **In Progress**:
-- Phase 3.2: Database migrations (0/11)
-- Phase 3.3: Service utilities (0/2)
-- Phase 3.4: TV pages need real data (3 pages)
-- Phase 3.5: Real-time synchronization (0/4)
+- Phase 3.4: TV pages need real data (3 pages remaining: T047-T049)
+- Phase 3.5: Real-time synchronization (4 tasks remaining: T055-T058)
 
 **Not Started**:
 - Phase 3.6: Integration tests (0/10)
