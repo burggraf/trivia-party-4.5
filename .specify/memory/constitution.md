@@ -1,50 +1,94 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+Version change: 0.0.0 → 1.0.0
+Modified principles: none (initial release)
+Added sections: Core Principles; Experience & Quality Standards; Delivery Workflow; Governance
+Removed sections: none
+Templates requiring updates:
+- ✅ .specify/templates/plan-template.md
+- ✅ .specify/templates/spec-template.md
+- ✅ .specify/templates/tasks-template.md
+- ✅ .specify/templates/agent-file-template.md
+Follow-up TODOs: none
+-->
+
+# Trivia Party Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### Architecture: Static Client-Side React Application
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+**Deployment Model:**
+- All applications are static web apps deployed to Cloudflare Pages
+- No server-side execution or Node.js runtime APIs
+- All application logic runs in the browser
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Frontend Stack:**
+- React with TypeScript (strict mode, no `any` types)
+- shadcn/ui components with Tailwind CSS for all UI
+- Modular component architecture with clear separation of concerns
+- Target: ≤250 lines per file for maintainability
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### Backend: Supabase Exclusive
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+**Service Layer:**
+- Supabase client library (`supabase-js`) is the only backend interface
+- All data operations through Supabase PostgreSQL with Row-Level Security (RLS)
+- Authentication via Supabase Auth
+- Realtime subscriptions, Storage, and Edge Functions as needed
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Logic Placement:**
+- Prefer Postgres functions (via `supabase.rpc()`) for data operations
+- Use Edge Functions only for external API integrations or complex orchestrations
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### Code Quality
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Standards:**
+- Favor simplicity over cleverness
+- Small, focused, readable functions and components
+- Inline documentation for non-obvious logic
+- Zero linter errors, zero type errors
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Experience & Quality Standards
+
+**Design Consistency:**
+- Use shadcn/ui components exclusively; maintain consistent Tailwind design tokens
+- Follow accessibility best practices (semantic HTML, ARIA labels, keyboard navigation)
+
+**Testing & Validation:**
+- All code must pass TypeScript compilation with strict mode
+- All code must pass ESLint with zero warnings
+- Unit tests for complex business logic and data transformations
+- Integration tests for critical user flows
+
+**Performance Targets:**
+- First Contentful Paint (FCP) < 1.5s
+- Time to Interactive (TTI) < 3.5s
+- Lighthouse Performance score ≥ 90
+
+## Delivery Workflow
+
+**Spec-Kit Integration:**
+- Use `/specify`, `/plan`, and `/tasks` commands to ensure alignment with these principles
+- All specifications and plans should explicitly address architectural constraints
+- Task breakdowns should reference relevant constitution sections
+
+**Quality Gates:**
+- Code reviews must verify adherence to architecture and quality standards
+- Pull requests must include test coverage for new functionality
+- Deployments must pass all automated checks (types, lints, tests)
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+**Amendment Process:**
+- Propose changes via discussion with documented rationale
+- Update version following semantic versioning (MAJOR.MINOR.PATCH)
+- Use `/constitution` command to apply changes and sync dependent templates
+- Document impact on existing specifications and tasks
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version Semantics:**
+- MAJOR: Breaking changes to core architectural principles
+- MINOR: New principles or significant clarifications
+- PATCH: Editorial improvements or minor clarifications
+
+**Version**: 1.0.0 | **Ratified**: 2025-09-28 | **Last Amended**: 2025-09-28

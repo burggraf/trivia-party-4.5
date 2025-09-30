@@ -1,0 +1,267 @@
+/specify game setup
+
+# Multi-User Trivia Party Application
+
+## Overview
+A real-time multi-user trivia application designed for pub/restaurant venues where players use mobile phones while questions and scores display on TV screens. The host controls game flow, and teams compete through multiple rounds of trivia questions.
+
+## User Roles
+- **Host**: Controls game setup, flow, and progression
+- **Player**: Joins teams, views questions, submits answers
+
+## Game Setup (Pre-Event)
+
+### Event Configuration
+- Create game event with:
+  - Name (required)
+  - Date and time (optional)
+  - Venue/location (optional)
+
+### Round Configuration
+- Number of rounds (e.g., 3 rounds)
+- Number of questions per round (e.g., 5 questions)
+- Category selection for each round (single or multiple categories)
+
+### Available Categories
+- Arts & Literature
+- Entertainment
+- Food and Drink
+- General Knowledge
+- Geography
+- History
+- Pop Culture
+- Science
+- Sports
+- Technology
+
+### Question Database
+Existing `questions` table with 61,000+ questions:
+
+```sql
+Table "public.questions"
+   Column   |           Type           | Collation | Nullable | Default
+------------+--------------------------+-----------+----------+---------
+ id         | uuid                     |           | not null |
+ category   | text                     |           | not null |
+ question   | text                     |           | not null |
+ a          | text                     |           |          | -- CORRECT ANSWER
+ b          | text                     |           |          | -- Wrong answer
+ c          | text                     |           |          | -- Wrong answer
+ d          | text                     |           |          | -- Wrong answer
+ metadata   | jsonb                    |           |          |
+ created_at | timestamp with time zone |           |          |
+ updated_at | timestamp with time zone |           |          |
+
+Indexes:
+    "questions_pkey" PRIMARY KEY, btree (id)
+    "idx_questions_category" btree (category)
+    "idx_questions_created_at" btree (created_at DESC)
+
+Policies:
+    "Authenticated users can read questions" FOR SELECT
+    "Authenticated users can view questions" FOR SELECT TO authenticated
+```
+
+**IMPORTANT**: Column "a" contains the correct answer; columns "b", "c", "d" contain incorrect answers.
+
+### Question Selection & Preview
+- Questions randomly selected based on categories and quantities
+- Host can preview selected questions/answers before game starts
+- Host can modify selections (remove questions, reorder answers, etc.)
+- Host saves configuration and starts game at scheduled time
+
+## Game Play
+
+### Player Entry
+Players join via:
+- Game code provided by host
+- QR code scan displayed on TV screens
+
+### Team Management
+- Players can create new team OR join existing team
+- Teams support multiple players
+- **Answer locking**: First submitted answer per team is final (no changes allowed)
+- Teams must coordinate on single answer before submission
+
+### Game Flow (Host-Controlled)
+- Host advances to next question
+- Host reveals correct answers
+- Host displays scores/standings
+- **One-way control**: Host browser controls all actions; player browsers are read-only
+
+### Real-Time Communication
+All updates transmitted via **Supabase Realtime broadcast channels**:
+- Question display to TV screens
+- Question sync to player devices
+- Answer submissions
+- Score updates
+- Standings display
+
+### Scoring & Results
+- Track all team answers
+- Calculate scores based on correct answers
+- Display scores at:
+  - End of each round
+  - End of game
+- Show final standings with winning team
+- Visualize scores using charts/graphs for engaging display
+
+## Authentication & Authorization
+
+### Host Authentication
+- Email/password authentication required
+- Each host can only access their own games and data
+- Hosts cannot view or manage other hosts' games
+- Only the host who created a game can delete it
+
+### Player Authentication
+- **Option 1**: Create account with email/password
+- **Option 2**: Anonymous login (just enter name) using Supabase anonymous authentication
+- Both options available to players
+
+## Answer Randomization
+
+- Answers (a, b, c, d) must be shuffled for each question before display
+- Shuffle order is identical for all players, teams, and TV displays
+- Host preview shows the same shuffled order that players will see
+- **Critical**: Column "a" in database is always correct, but display order must be randomized
+
+## Timing Rules
+
+### Time Constraints (Optional)
+- Host configures time limits during game setup (optional)
+- Time limits apply per question (not per round)
+- When time expires: auto-advance to next question following normal game flow
+- Countdown timer visible to players only if time limits are enabled
+
+## Scoring System
+
+### Points
+- All questions worth 1 point (correct/incorrect, no partial credit)
+- No speed bonuses
+
+### Tie-Breaking
+- If teams have equal scores: team with lowest total time taken to answer wins
+- Track cumulative answer time for each team throughout game
+
+## Game State Management
+
+### Host Controls
+- **Pause**: Host can pause game; screen shows "paused" state for all users
+- **Resume**: Host can resume from paused state
+- **Navigation**: Host can go back to previous questions if advanced accidentally
+- **Early End**: Host can end game before all rounds complete; show final scores based on completed rounds
+- **Question Preview**: Host can privately preview next question with option to replace it with another from same category
+
+### Disconnection Handling
+- If host disconnects: game pauses automatically until host reconnects
+- Host can reconnect and continue from paused state
+
+### Game Persistence
+- Games can be saved and resumed at a later date
+- Game state persists across sessions
+
+## Team Management
+
+### Team Size Limits
+- Host specifies minimum players per team (minimum: 1 player)
+- Host specifies maximum players per team (maximum: 6 players)
+- Solo players allowed (team of 1)
+
+### Team Rules
+- Players cannot switch teams after joining
+- Players cannot join once game has started
+- Team names must be unique per game (no restrictions on content)
+- If player misses questions (late join before game starts), missed questions count as incorrect
+
+### Multi-Player Answer Submission
+- First answer submitted per team is final and locked
+- If multiple players submit simultaneously: first received wins, others ignored
+- Subsequent submission attempts show message: "Your team has already answered"
+
+## Data Persistence & History
+
+### Game History
+- All completed games saved permanently
+- Hosts can view their past games with full details
+- Players can view their game history (without seeing actual questions)
+
+### Statistics Tracking
+- Track team/player statistics over time across multiple games
+- Metrics include: games played, win rates, accuracy, etc.
+
+### Leaderboards
+- Global or venue-based leaderboards available
+- Rankings based on game performance
+
+### Question Reuse Prevention
+- **Critical**: Never repeat questions for a host
+- Track all questions used by each host across all their games
+- Exclude previously used questions when selecting random questions
+- If category has insufficient unused questions: supplement from related categories
+
+## Error Handling
+
+### Player Disconnection
+- Auto-reconnect attempts on connection loss
+- Show "Reconnect" button if auto-reconnect fails
+- Player rejoins same team automatically
+- Questions missed during disconnection: no penalty (not counted as incorrect)
+
+### Network Failures
+- Retry answer submissions automatically on network failure
+- Show loading states during retry attempts
+- Display error message if submission ultimately fails
+
+### Answer Conflicts
+- First answer received per team is recorded
+- Subsequent answers from same team ignored
+- Show message to late submitters: "Your team has already answered"
+
+## UI/UX Specifications
+
+### Player Interface
+- **Answer Display**: Show answer text only (no A/B/C/D labels)
+- **Team Status**: Show which teammates are currently online/connected
+- **Submission Status**: Show "Your team has answered" after answer submitted (don't reveal which answer)
+- **Countdown Timer**: Display only if host enabled time limits
+
+### TV Display
+- **During Questions**: Show question and answers only
+- **Team Count**: Show "X of Y teams have answered" during active questions
+- **Before Game**: Show team names and initial scores (0)
+- **End of Round**: Show team names, scores, and standings
+- **End of Game**: Show final team names, scores, and winner
+
+### Sound Effects (Optional)
+- Host can enable/disable sound effects during setup
+- Sounds for: time running out, answers locked, round complete, etc.
+
+## Edge Cases
+
+### No Answers Submitted
+- If no teams answer a question: host still reveals correct answer, then advance
+
+### Question Management
+- Host can preview next question privately before displaying
+- Host can replace upcoming question with another from same category
+- Skipped/replaced questions don't count toward round totals
+
+### Insufficient Questions
+- If category lacks enough unused questions: auto-supplement from related categories
+- Never repeat questions previously used by that host
+- With 61,000+ questions, this should be rare
+
+### Game Completion
+- Host can end game early at any time
+- Final scores calculated from completed rounds only
+- Incomplete rounds not counted
+
+## Technical Requirements
+- Supabase Realtime for all client synchronization
+- Real-time broadcast channels for state updates
+- Mobile-responsive player interface
+- TV-optimized display for questions/scores
+- Host control interface for game management
+- Supabase anonymous authentication for guest players
+- Email/password authentication for hosts and registered players
