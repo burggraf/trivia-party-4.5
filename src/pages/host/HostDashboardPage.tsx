@@ -32,18 +32,11 @@ export default function HostDashboardPage() {
       try {
         const supabase = createClient()
 
-        const { data: hostData, error: hostError } = await supabase
-          .from('hosts')
-          .select('id')
-          .eq('user_id', user.id)
-          .single()
-
-        if (hostError) throw hostError
-
+        // host.id is the same as auth.users.id
         const { data: gamesData, error: gamesError } = await supabase
           .from('games')
           .select('*')
-          .eq('host_id', hostData.id)
+          .eq('host_id', user.id)
           .order('created_at', { ascending: false })
 
         if (gamesError) throw gamesError
