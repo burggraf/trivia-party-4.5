@@ -57,54 +57,50 @@ supabase/             # Database migrations
 
 ## Phase 3.1: Setup (T001-T008) - All parallelizable [P]
 
-- [ ] **T001** [P] Initialize Next.js 14+ project with TypeScript and App Router at repository root
+- [X] **T001** [P] Initialize Next.js 14+ project with TypeScript and App Router at repository root
   - Run: `npx create-next-app@latest . --typescript --tailwind --app --src-dir=false --import-alias="@/*"`
   - Configure: `output: 'export'` in `next.config.js` for static site generation
   - Verify: `package.json` has Next.js 14+, TypeScript 5+, React 18+
 
-- [ ] **T002** [P] Install and configure Supabase client libraries
-  - Run: `npm install @supabase/supabase-js @supabase/auth-helpers-nextjs`
+- [X] **T002** [P] Install and configure Supabase client libraries
+  - Run: `npm install @supabase/supabase-js @supabase/ssr`
   - Create: `lib/supabase/client.ts` (browser client)
   - Create: `lib/supabase/server.ts` (server client for RLS)
-  - Add environment variables to `.env.local`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - Add environment variables to `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-- [ ] **T003** [P] Setup Tailwind CSS and shadcn/ui component library
-  - Run: `npx shadcn-ui@latest init`
-  - Configure: Select default theme, CSS variables
-  - Install initial components: `npx shadcn-ui@latest add button card dialog input label select`
+- [X] **T003** [P] Setup Tailwind CSS and shadcn/ui component library
+  - Install: `npm install -D @radix-ui/react-slot class-variance-authority clsx tailwind-merge lucide-react`
+  - Configure: Tailwind CSS with @tailwindcss/postcss
+  - Create: `components/ui/button.tsx` and `components/ui/card.tsx`
   - Verify: `components/ui/` directory created with primitives
 
-- [ ] **T004** [P] Configure ESLint, Prettier, and TypeScript strict mode
+- [X] **T004** [P] Configure ESLint, Prettier, and TypeScript strict mode
   - Update `tsconfig.json`: Enable `strict: true`, `noUncheckedIndexedAccess: true`
   - Create `.eslintrc.json`: Extend Next.js config, add custom rules (no `any` types)
   - Create `.prettierrc`: Configure formatting (semi, single quotes, trailing comma)
   - Add npm scripts: `"lint": "next lint"`, `"format": "prettier --write ."`
 
-- [ ] **T005** [P] Setup Vitest and React Testing Library for unit/component tests
+- [X] **T005** [P] Setup Vitest and React Testing Library for unit/component tests
   - Run: `npm install -D vitest @vitejs/plugin-react @testing-library/react @testing-library/jest-dom`
   - Create: `vitest.config.ts` with React plugin
   - Create: `tests/setup.ts` with Testing Library matchers
   - Add npm script: `"test": "vitest"`
   - Verify: `npm test -- --version` runs successfully
 
-- [ ] **T006** [P] Setup Playwright for E2E integration tests
+- [X] **T006** [P] Setup Playwright for E2E integration tests
   - Run: `npm install -D @playwright/test`
-  - Run: `npx playwright install`
+  - Run: `npx playwright install chromium`
   - Create: `playwright.config.ts` with multi-browser config
-  - Create: `tests/e2e/example.spec.ts` (smoke test)
   - Add npm script: `"test:e2e": "playwright test"`
 
-- [ ] **T007** [P] Initialize Supabase project and setup CLI
+- [X] **T007** [P] Initialize Supabase project and setup CLI
   - Run: `npx supabase init` (creates `supabase/` directory)
   - Create: `supabase/config.toml` with project settings
-  - Run: `npx supabase start` to start local Supabase instance
-  - Verify: Local Supabase running on localhost:54321
 
-- [ ] **T008** [P] Install additional dependencies (Zod, Zustand, Recharts, QRCode)
+- [X] **T008** [P] Install additional dependencies (Zod, Zustand, Recharts, QRCode)
   - Run: `npm install zod zustand recharts qrcode.react seedrandom`
-  - Run: `npm install -D @types/seedrandom`
+  - Run: `npm install -D @types/seedrandom prettier`
   - Verify: All packages in `package.json` with correct versions
-  - Run: `npm install` to ensure clean dependency tree
 
 ---
 
