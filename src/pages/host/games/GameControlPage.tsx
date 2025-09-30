@@ -66,7 +66,8 @@ export default function GameControlPage() {
         // Load current question
         const { question: questionData, error: questionError } = await getCurrentQuestion(gameId)
         if (questionData) {
-          const q = questionData as any
+          const gameQuestion = questionData as any
+          const q = gameQuestion.question // Access nested question object
           setQuestion({
             id: q.id,
             category: q.category,
@@ -95,6 +96,19 @@ export default function GameControlPage() {
       setError('Failed to start game')
     } else if (updatedGame) {
       setGame(updatedGame)
+      // Reload question after starting
+      const { question: questionData } = await getCurrentQuestion(gameId)
+      if (questionData) {
+        const gameQuestion = questionData as any
+        const q = gameQuestion.question // Access nested question object
+        setQuestion({
+          id: q.id,
+          category: q.category,
+          question: q.question,
+          answers: [q.a, q.b, q.c, q.d],
+          correctAnswerIndex: 0,
+        })
+      }
     }
     setActionLoading(false)
   }
@@ -115,7 +129,8 @@ export default function GameControlPage() {
       // Reload question
       const { question: questionData } = await getCurrentQuestion(gameId)
       if (questionData) {
-        const q = questionData as any
+        const gameQuestion = questionData as any
+        const q = gameQuestion.question // Access nested question object
         setQuestion({
           id: q.id,
           category: q.category,
