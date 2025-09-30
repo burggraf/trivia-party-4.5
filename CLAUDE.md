@@ -271,11 +271,13 @@ export function createGameChannel(gameId: string): RealtimeChannel
 
 ## Common Pitfalls to Avoid
 
-❌ **Implementing before writing tests** - Contract tests T017-T041 MUST exist and FAIL before T048-T070
+❌ **CRITICAL: Creating API routes** - This is a static export application. NEVER create files in `app/api/`. All Supabase operations MUST happen client-side using the browser client (`lib/supabase/client.ts`)
 
-❌ **Not verifying test failures** - Run contract tests before implementation to confirm 404/500 errors
+❌ **CRITICAL: Using server-side code** - No `cookies()`, `headers()`, Server Components with data fetching, or server actions. EVERY page must use `'use client'` directive
 
-❌ **Forgetting RLS policies** - All database queries must use Supabase browser client with proper RLS policies configured in Supabase
+❌ **Using lib/supabase/server.ts** - This file should NOT be used. Always use `lib/supabase/client.ts` for browser-based operations
+
+❌ **Forgetting RLS policies** - All database queries run as authenticated user via browser client. RLS policies are the ONLY authorization mechanism
 
 ❌ **Hardcoding database connection strings** - Use environment variables from `.env.local`
 
