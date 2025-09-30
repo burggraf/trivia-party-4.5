@@ -96,7 +96,7 @@
 ### Architecture Requirements ✅
 
 **Static Client-Side React Application**:
-- ✅ Next.js 14+ with App Router deployed as static site to Cloudflare Pages
+- ✅ Vite 7+ with React Router deployed as static site to Cloudflare Pages
 - ✅ No server-side execution beyond build time
 - ✅ All application logic runs in browser
 - ✅ React with TypeScript strict mode enforced
@@ -328,92 +328,108 @@ setup → active → paused ⇄ active → completed
  completed (early termination)
 ```
 
-### 2. Generate API contracts from functional requirements
+### 2. Service Layer Architecture
 
-**25 REST Endpoints** (grouped by actor):
+All database operations are performed **client-side** using the Supabase browser client (`src/lib/supabase/client.ts`). This aligns with our constitutional principle of "static site only" - zero server-side execution.
 
-**Host Endpoints** (10):
-1. `POST /api/host/games` - Create game (FR-001 to FR-005)
-2. `GET /api/host/games/:id` - Get game config (FR-009)
-3. `PUT /api/host/games/:id` - Update game config (FR-010, FR-011)
-4. `POST /api/host/games/:id/start` - Start game, generate code (FR-013, FR-014)
-5. `POST /api/host/games/:id/pause` - Pause game (FR-052)
-6. `POST /api/host/games/:id/resume` - Resume game (FR-055)
-7. `POST /api/host/games/:id/advance` - Advance to next question (FR-045)
-8. `POST /api/host/games/:id/reveal` - Reveal correct answer (FR-046)
-9. `POST /api/host/games/:id/navigate` - Navigate to specific question (FR-056)
-10. `POST /api/host/games/:id/end` - End game early (FR-058)
+**Service Layer Structure**:
 
-**Player Endpoints** (8):
-11. `POST /api/player/auth/register` - Register player account (FR-021)
-12. `POST /api/player/auth/anonymous` - Create anonymous session (FR-022)
-13. `GET /api/player/games/:code` - Find game by code (FR-025)
-14. `POST /api/player/games/:id/teams` - Create team (FR-028)
-15. `POST /api/player/games/:id/teams/:teamId/join` - Join team (FR-029)
-16. `POST /api/player/games/:id/questions/:questionId/answers` - Submit answer (FR-039, FR-040)
-17. `GET /api/player/games/:id/status` - Get game status (FR-036)
-18. `GET /api/player/history` - Get player game history (FR-089)
-
-**TV Display Endpoints** (3):
-19. `GET /api/tv/games/:code` - Get game by code (public, no auth)
-20. `GET /api/tv/games/:id/question` - Get current question (FR-070)
-21. `GET /api/tv/games/:id/scores` - Get current scores (FR-074)
-
-**Leaderboard Endpoints** (2):
-22. `GET /api/leaderboard/:venueId` - Get venue leaderboard (FR-094)
-23. `GET /api/leaderboard/:venueId/player/:playerId` - Get player stats (FR-092)
-
-**Admin/Utility Endpoints** (2):
-24. `DELETE /api/host/games/:id` - Delete game (FR-024)
-25. `POST /api/admin/leaderboard/refresh` - Refresh materialized views (manual trigger)
-
-**Note**: Many endpoints will be replaced by direct Supabase client calls with RLS enforcement, avoiding Next.js API routes. API routes will be minimal thin wrappers only where complex server-side logic is required (e.g., question selection with reuse prevention).
-
-### 3. Generate contract tests
-
-**Contract Test Structure**:
-- One test file per endpoint in `tests/contract/`
-- Each test validates:
-  - Request schema (Zod validation)
-  - Response schema (Zod validation)
-  - Status codes (200, 201, 400, 403, 404, 409, 500)
-  - Error response format
-- Tests must fail initially (no implementation yet)
-
-**Example** (`tests/contract/player/test_submit_answer.ts`):
 ```typescript
-import { describe, it, expect } from 'vitest'
+// src/lib/services/game-service.ts
+export async function createGame(params: CreateGameParams): Promise<GameResult>
+export async function getGame(gameId: string): Promise<GameResult>
+export async function startGame(gameId: string): Promise<GameResult>
+export async function pauseGame(gameId: string): Promise<GameResult>
+export async function resumeGame(gameId: string): Promise<GameResult>
+export async function advanceQuestion(gameId: string): Promise<GameResult>
+export async function revealAnswer(gameId: string): Promise<GameResult>
+export async function navigateToQuestion(gameId: string, index: number): Promise<GameResult>
+export async function endGame(gameId: string): Promise<GameResult>
+export async function submitAnswer(params: SubmitAnswerParams): Promise<SubmitAnswerResult>
+export async function getGameScores(gameId: string): Promise<GameScoresResult>
+export async function getCurrentQuestion(gameId: string): Promise<QuestionResult>
+
+// src/lib/services/team-service.ts
+export async function createTeam(params: CreateTeamParams): Promise<TeamResult>
+export async function joinTeam(params: JoinTeamParams): Promise<JoinResult>
+export async function getTeams(gameId: string): Promise<TeamsResult>
+export async function getMyTeam(gameId: string): Promise<TeamResult>
+
+// src/lib/services/auth-service.ts
+export async function loginHost(email: string, password: string): Promise<AuthResult>
+export async function signupHost(email: string, password: string): Promise<AuthResult>
+export async function loginPlayer(email: string, password: string): Promise<AuthResult>
+export async function signupPlayer(email: string, password: string, displayName: string): Promise<AuthResult>
+export async function loginAnonymous(): Promise<AuthResult>
+export async function logout(): Promise<{ error: Error | null }>
+export async function getCurrentUser(): Promise<{ user: User | null; session: Session | null }>
+```
+
+**Authorization**: Row-Level Security (RLS) policies enforce all access control. Services call Supabase client as authenticated user, RLS policies filter results automatically.
+
+**Error Handling**: Services return `{ data, error }` tuple pattern. UI components handle errors via React state.
+
+**Type Safety**: All service functions use Zod schemas for request/response validation:
+
+```typescript
+// src/types/api.types.ts
 import { z } from 'zod'
 
-const SubmitAnswerRequest = z.object({
-  gameId: z.string().uuid(),
-  questionId: z.string().uuid(),
-  answer: z.enum(['a', 'b', 'c', 'd']),
-  answeredAt: z.string().datetime()
+export const CreateGameSchema = z.object({
+  name: z.string().min(1),
+  venueLocation: z.string().optional(),
+  numRounds: z.number().int().positive(),
+  questionsPerRound: z.number().int().positive(),
+  categories: z.array(z.string()).min(1),
+  timeLimitSeconds: z.number().int().positive().optional(),
 })
 
-const SubmitAnswerResponse = z.object({
-  success: z.boolean(),
-  submissionId: z.string().uuid().optional(),
-  error: z.string().optional()
-})
+export type CreateGameParams = z.infer<typeof CreateGameSchema>
+```
 
-describe('POST /api/player/games/:id/questions/:questionId/answers', () => {
-  it('validates request schema', () => {
-    // Test will fail until implementation exists
-    expect(true).toBe(false) // Placeholder failure
+### 3. Service Layer Testing
+
+**Unit Tests** (`tests/unit/services/`):
+- Test service functions with mocked Supabase client
+- Validate request parameter validation via Zod schemas
+- Verify error handling for all failure cases
+- Test RLS policy enforcement (expect nulls/errors for unauthorized access)
+
+**Integration Tests** (`tests/e2e/`):
+- Playwright tests with real Supabase project
+- Multi-client scenarios (host + players + TV in separate browsers)
+- Test complete user flows from quickstart.md
+- Verify real-time synchronization across clients
+
+**Example Unit Test** (`tests/unit/services/game-service.test.ts`):
+```typescript
+import { describe, it, expect, vi } from 'vitest'
+import { createGame } from '@/lib/services/game-service'
+import { supabase } from '@/lib/supabase/client'
+
+vi.mock('@/lib/supabase/client')
+
+describe('createGame', () => {
+  it('validates required parameters', async () => {
+    const result = await createGame({ name: '', numRounds: 0 })
+    expect(result.error).toBeTruthy()
+    expect(result.error.message).toContain('name')
   })
 
-  it('returns 201 on first submission', () => {
-    expect(true).toBe(false)
-  })
+  it('creates game with valid parameters', async () => {
+    vi.mocked(supabase.from).mockReturnValue({
+      insert: vi.fn().mockResolvedValue({ data: { id: 'game-123' }, error: null })
+    })
 
-  it('returns 409 on duplicate submission', () => {
-    expect(true).toBe(false)
-  })
+    const result = await createGame({
+      name: 'Test Game',
+      numRounds: 3,
+      questionsPerRound: 5,
+      categories: ['Sports']
+    })
 
-  it('validates response schema', () => {
-    expect(true).toBe(false)
+    expect(result.game).toBeTruthy()
+    expect(result.error).toBeNull()
   })
 })
 ```
