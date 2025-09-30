@@ -8,6 +8,7 @@
 │     2.4 /plan - Create implementation plans                                 │
 │     2.5 /tasks - Generate actionable tasks                                  │
 │     2.6 /analyze - Validate alignment & surface inconsistencies (read-only) │
+      2.6a /init - CLAUDE.md
 │     2.7 /implement - Execute implementation                                 │
 │                                                                             │
 ╰─────────────────────────────────────────────────────────────────────────────╯
