@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/client'
 import { getGame, getCurrentQuestion, getGameScores, type GameState } from '@/lib/services/game-service'
 import { getTeams } from '@/lib/services/team-service'
 import { subscribeToGameEvents, subscribeToTVUpdates } from '@/lib/realtime/channels'
+import { answersFromQuestion, shuffleAnswers } from '@/lib/game/answer-shuffling'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { GameIntroScreen } from '@/components/shared/GameIntroScreen'
@@ -72,12 +73,18 @@ export default function TVQuestionPage() {
         if (questionData) {
           const gameQuestion = questionData as any
           const q = gameQuestion.question
+
+          // Shuffle answers using seed for consistent ordering across all clients
+          const answerObjects = answersFromQuestion(q, 'a')
+          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
+          const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
+
           setQuestion({
             id: q.id,
             category: q.category,
             question: q.question,
-            answers: [q.a, q.b, q.c, q.d],
-            correctAnswerIndex: 0, // In DB, 'a' is always correct
+            answers: shuffledAnswers.map(a => a.text),
+            correctAnswerIndex: correctAnswerIdx,
             timeLimit: games.time_limit_seconds,
           })
         }
@@ -116,14 +123,20 @@ export default function TVQuestionPage() {
               setTimeRemaining(payload.game.time_limit_seconds)
             }
 
-            if (payload.question) {
+            if (payload.question && payload.randomizationSeed) {
               const q = payload.question
+
+              // Shuffle answers using seed for consistent ordering across all clients
+              const answerObjects = answersFromQuestion(q, 'a')
+              const shuffledAnswers = shuffleAnswers(answerObjects, payload.randomizationSeed)
+              const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
+
               setQuestion({
                 id: q.id,
                 category: q.category,
                 question: q.question,
-                answers: [q.a, q.b, q.c, q.d],
-                correctAnswerIndex: 0,
+                answers: shuffledAnswers.map(a => a.text),
+                correctAnswerIndex: correctAnswerIdx,
                 timeLimit: payload.game?.time_limit_seconds || 30,
               })
             }

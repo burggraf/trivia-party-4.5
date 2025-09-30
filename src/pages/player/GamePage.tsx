@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/hooks/use-auth'
 import { getGame, getCurrentQuestion, submitAnswer, type GameState } from '@/lib/services/game-service'
 import { getMyTeam } from '@/lib/services/team-service'
 import { subscribeToGameEvents } from '@/lib/realtime/channels'
+import { answersFromQuestion, shuffleAnswers } from '@/lib/game/answer-shuffling'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -80,24 +81,27 @@ export default function GamePage() {
         if (questionData) {
           const gameQuestion = questionData as any
           const q = gameQuestion.question
-          // Note: In database, 'a' is always the correct answer
-          // TODO: Implement answer shuffling using randomization_seed
-          const answers = [q.a, q.b, q.c, q.d]
+
+          // Shuffle answers using seed for consistent ordering across all clients
+          const answerObjects = answersFromQuestion(q, 'a')
+          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
 
           // Create map from answer text to database key (a/b/c/d)
           const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
-          answers.forEach((answer, idx) => {
-            answersMap[answer] = ['a', 'b', 'c', 'd'][idx] as 'a' | 'b' | 'c' | 'd'
+          shuffledAnswers.forEach(ans => {
+            answersMap[ans.text] = ans.letter
           })
+
+          const correctAnswerText = shuffledAnswers.find(a => a.is_correct)?.text || ''
 
           setQuestion({
             id: q.id,
             gameQuestionId: gameQuestion.id,
             category: q.category,
             question: q.question,
-            answers,
+            answers: shuffledAnswers.map(a => a.text),
             answersMap,
-            correctAnswer: answers[0], // First answer (index 0) is always correct since we don't shuffle yet
+            correctAnswer: correctAnswerText,
             timeLimit: gameData.time_limit_seconds,
           })
         }
@@ -150,22 +154,29 @@ export default function GamePage() {
               setTimeRemaining(payload.game.time_limit_seconds)
             }
 
-            if (payload.question) {
+            if (payload.question && payload.randomizationSeed) {
               const q = payload.question
-              const answers = [q.a, q.b, q.c, q.d]
+
+              // Shuffle answers using seed for consistent ordering across all clients
+              const answerObjects = answersFromQuestion(q, 'a')
+              const shuffledAnswers = shuffleAnswers(answerObjects, payload.randomizationSeed)
+
+              // Create map from answer text to database key (a/b/c/d)
               const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
-              answers.forEach((answer, idx) => {
-                answersMap[answer] = ['a', 'b', 'c', 'd'][idx] as 'a' | 'b' | 'c' | 'd'
+              shuffledAnswers.forEach(ans => {
+                answersMap[ans.text] = ans.letter
               })
+
+              const correctAnswerText = shuffledAnswers.find(a => a.is_correct)?.text || ''
 
               setQuestion({
                 id: q.id,
                 gameQuestionId: payload.gameQuestionId,
                 category: q.category,
                 question: q.question,
-                answers,
+                answers: shuffledAnswers.map(a => a.text),
                 answersMap,
-                correctAnswer: answers[0],
+                correctAnswer: correctAnswerText,
                 timeLimit: payload.game?.time_limit_seconds || 30,
               })
             }

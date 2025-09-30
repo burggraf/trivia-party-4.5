@@ -5,6 +5,7 @@ import { getGame, getCurrentQuestion, advanceGameState, pauseGame, resumeGame, e
 import { getTeams } from '@/lib/services/team-service'
 import { supabase } from '@/lib/supabase/client'
 import { subscribeToGameEvents } from '@/lib/realtime/channels'
+import { answersFromQuestion, shuffleAnswers } from '@/lib/game/answer-shuffling'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -76,12 +77,18 @@ export default function GameControlPage() {
         if (questionData) {
           const gameQuestion = questionData as any
           const q = gameQuestion.question // Access nested question object
+
+          // Shuffle answers using seed for consistent ordering
+          const answerObjects = answersFromQuestion(q, 'a')
+          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
+          const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
+
           setQuestion({
             id: q.id,
             category: q.category,
             question: q.question,
-            answers: [q.a, q.b, q.c, q.d],
-            correctAnswerIndex: 0, // In DB, 'a' is always correct
+            answers: shuffledAnswers.map(a => a.text),
+            correctAnswerIndex: correctAnswerIdx,
           })
         }
 
@@ -125,14 +132,20 @@ export default function GameControlPage() {
             setGame(payload.game)
           }
           // Load question if transitioning to question_active
-          if (payload.state === 'question_active' && payload.question) {
+          if (payload.state === 'question_active' && payload.question && payload.randomizationSeed) {
             const q = payload.question
+
+            // Shuffle answers using seed for consistent ordering
+            const answerObjects = answersFromQuestion(q, 'a')
+            const shuffledAnswers = shuffleAnswers(answerObjects, payload.randomizationSeed)
+            const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
+
             setQuestion({
               id: q.id,
               category: q.category,
               question: q.question,
-              answers: [q.a, q.b, q.c, q.d],
-              correctAnswerIndex: 0,
+              answers: shuffledAnswers.map(a => a.text),
+              correctAnswerIndex: correctAnswerIdx,
             })
           }
           // Navigate to scores page if game is complete
@@ -165,12 +178,18 @@ export default function GameControlPage() {
         if (questionData) {
           const gameQuestion = questionData as any
           const q = gameQuestion.question
+
+          // Shuffle answers using seed for consistent ordering
+          const answerObjects = answersFromQuestion(q, 'a')
+          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
+          const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
+
           setQuestion({
             id: q.id,
             category: q.category,
             question: q.question,
-            answers: [q.a, q.b, q.c, q.d],
-            correctAnswerIndex: 0,
+            answers: shuffledAnswers.map(a => a.text),
+            correctAnswerIndex: correctAnswerIdx,
           })
         }
       }

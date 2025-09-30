@@ -718,8 +718,10 @@ export async function advanceGameState(gameId: string): Promise<AdvanceStateResu
       if (nextState === 'question_active') {
         const { question: questionData } = await getCurrentQuestion(gameId)
         if (questionData) {
-          eventPayload.question = (questionData as any).question
-          eventPayload.gameQuestionId = (questionData as any).id
+          const gameQuestion = questionData as any
+          eventPayload.question = gameQuestion.question
+          eventPayload.gameQuestionId = gameQuestion.id
+          eventPayload.randomizationSeed = gameQuestion.randomization_seed
         }
       }
 
