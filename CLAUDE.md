@@ -16,10 +16,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Technology Stack
 
-- **Framework**: Next.js 14+ with App Router in **static export mode** (`output: 'export'`)
-  - **IMPORTANT**: No server-side execution, no Server Components runtime
-  - Next.js used as build tooling only - produces pure static HTML/CSS/JS
+- **Framework**: **Vite 7+** with **React 19** and **React Router 7**
+  - **IMPORTANT**: Pure static site generation - no server-side execution
+  - Vite used for fast dev server and optimized production builds
   - Deployed to Cloudflare Pages as static site
+- **Routing**: React Router 7 (client-side only, no SSR)
 - **Database**: Supabase (PostgreSQL with 61,000+ questions)
 - **Real-time**: Supabase Realtime broadcast channels (WebSocket-based)
 - **Auth**: Supabase Auth (email/password for hosts, email/password OR anonymous for players)
@@ -57,29 +58,36 @@ All specification documents are in `specs/001-game-setup-multi/`:
 
 ### Three-Interface Architecture
 
-The application uses Next.js App Router route groups to separate three distinct interfaces. **All routes are static client-side pages** - no Server Components, no server-side rendering:
+The application uses **React Router** for client-side navigation. Three distinct interfaces are organized as separate page components:
 
 ```typescript
-// Route Structure (all client-side React components)
-app/
-├── (host)/          // Host control interface (client-side only)
-│   ├── dashboard/
-│   └── games/[gameId]/
-│       ├── setup/   // Game configuration & preview
-│       ├── control/ // Active game controls
-│       └── scores/  // Score display
-├── (player)/        // Mobile player interface (client-side only)
-│   ├── join/
-│   ├── lobby/
-│   └── game/[gameId]/
-└── (tv)/            // TV display interface (client-side only)
-    └── [gameCode]/
-        ├── lobby/
-        ├── question/
-        └── scores/
+// Route Structure (defined in src/App.tsx with React Router)
+src/
+├── pages/
+│   ├── HomePage.tsx           // Landing page
+│   ├── TestPage.tsx           // Architecture test page
+│   ├── host/
+│   │   ├── HostLoginPage.tsx
+│   │   ├── HostDashboardPage.tsx
+│   │   └── games/
+│   │       ├── GameSetupPage.tsx
+│   │       ├── GameControlPage.tsx
+│   │       └── GameScoresPage.tsx
+│   ├── player/
+│   │   ├── PlayerLoginPage.tsx
+│   │   ├── PlayerJoinPage.tsx
+│   │   ├── PlayerLobbyPage.tsx
+│   │   └── PlayerGamePage.tsx
+│   └── tv/
+│       ├── TvLobbyPage.tsx
+│       ├── TvQuestionPage.tsx
+│       └── TvScoresPage.tsx
+├── lib/             // Services, hooks, utilities
+├── types/           // TypeScript type definitions
+└── components/      // Reusable UI components
 ```
 
-**All pages must use `'use client'` directive** - this is a static site with client-side routing only.
+**All pages are standard React components** - no special directives needed. Routing is handled by React Router's `<Routes>` and `<Route>` components in `src/App.tsx`.
 
 ### Key Architectural Decisions
 
@@ -271,9 +279,9 @@ export function createGameChannel(gameId: string): RealtimeChannel
 
 ## Common Pitfalls to Avoid
 
-❌ **CRITICAL: Creating API routes** - This is a static export application. NEVER create files in `app/api/`. All Supabase operations MUST happen client-side using the browser client (`lib/supabase/client.ts`)
+❌ **CRITICAL: Creating server-side code** - This is a pure static site. NO server-side routes, API endpoints, or server-side rendering. All Supabase operations MUST happen client-side using the browser client (`src/lib/supabase/client.ts`)
 
-❌ **CRITICAL: Using server-side code** - No `cookies()`, `headers()`, Server Components with data fetching, or server actions. EVERY page must use `'use client'` directive
+❌ **CRITICAL: Using Next.js patterns** - We use Vite + React Router, not Next.js. Use React Router's `<Link to="/path">`, `useNavigate()`, and `useParams()` - NOT Next.js equivalents
 
 ❌ **Using lib/supabase/server.ts** - This file should NOT be used. Always use `lib/supabase/client.ts` for browser-based operations
 
@@ -297,7 +305,6 @@ export function createGameChannel(gameId: string): RealtimeChannel
 
 ```typescript
 // ❌ Bad: Logic in component
-'use client'
 export default function GameSetup() {
   const handleCreate = async () => {
     const questions = await supabase.from('questions').select('*').eq(...)
@@ -307,7 +314,6 @@ export default function GameSetup() {
 }
 
 // ✅ Good: Thin component, logic in lib/
-'use client'
 export default function GameSetup() {
   const handleCreate = async () => {
     const questions = await selectQuestions(hostId, categories, count)

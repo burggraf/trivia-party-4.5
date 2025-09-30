@@ -10,27 +10,31 @@ This document captures technical research and decisions for implementing the Mul
 
 ---
 
-## 1. Next.js App Router for Static Site Generation
+## 1. Vite + React Router for Static Site Generation
 
-**Decision**: Use Next.js 14+ with App Router and route groups for three distinct interfaces
+**Decision**: Use **Vite 7+ with React Router 7** for client-side routing and static builds
+
+**Migration Note**: Originally planned with Next.js App Router, but migrated to Vite on 2025-09-30 for better static site performance and simpler client-side architecture. See `/VITE_MIGRATION.md` for details.
 
 **Rationale**:
-- **Route Groups**: `(host)`, `(player)`, `(tv)` provide clean separation without affecting URL structure
-- **Static Export**: Compatible with Cloudflare Pages deployment (no server runtime required)
-- **Layouts**: Independent layouts per interface with different auth guards
-- **Server Components**: Can use RSC for build-time data fetching, but degrade gracefully to client-side for dynamic content
-- **Performance**: Built-in optimizations (code splitting, image optimization, font optimization)
+- **Perfect for SPAs**: Vite designed specifically for client-side single-page applications
+- **Fast Dev Server**: Instant HMR, no compilation delays (unlike Next.js dev server)
+- **Simple Routing**: React Router works perfectly for client-side navigation
+- **Smaller Bundle**: No Next.js framework overhead (~376KB vs larger Next.js bundles)
+- **Better DX**: No fighting against server-side features we don't need
+- **Static Export**: Clean `dist/` output, perfect for Cloudflare Pages
 
-**Alternatives Considered**:
-- **Vite + React Router**: More manual setup, no built-in static export, missing layout system
-- **Create React App**: Deprecated, no modern routing patterns
-- **Separate apps per interface**: Unnecessary complexity, code duplication, harder to share components
+**Why Not Next.js**:
+- Route groups `(name)` don't work properly with `output: 'export'` mode
+- Server Components features not needed for pure client-side app
+- Added complexity fighting against framework's server-side defaults
+- Slower dev server compared to Vite's instant HMR
 
 **Implementation Notes**:
-- Use `output: 'export'` in `next.config.js` for static site generation
-- Route groups don't affect URL: `(host)/dashboard` → `/dashboard`
-- Each route group has its own `layout.tsx` for interface-specific wrappers
-- Authentication guards implemented as middleware or layout-level checks
+- Page components organized in `src/pages/` directory structure
+- React Router in `src/App.tsx` with `<Routes>` and `<Route>` components
+- Environment variables use `VITE_` prefix, accessed via `import.meta.env`
+- Build output in `dist/` directory (not `.next/`)
 
 ---
 

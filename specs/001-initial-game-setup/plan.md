@@ -9,7 +9,7 @@
    ✓ Loaded successfully - 119 functional requirements identified
 2. Fill Technical Context (scan for NEEDS CLARIFICATION)
    ✓ Project Type: Web application (static React + Supabase backend)
-   ✓ Set Structure Decision based on Next.js App Router
+   ✓ Set Structure Decision based on Vite + React Router (migrated from initial Next.js plan)
 3. Fill the Constitution Check section based on the constitution document
    ✓ Aligned with constitution: Static React + Supabase exclusive
 4. Evaluate Constitution Check section below
@@ -35,13 +35,16 @@
 
 **Primary Requirement**: Build a real-time multi-user trivia application for pub/restaurant venues with three distinct interfaces (Host, Player, TV Display) enabling interactive trivia gameplay with team-based competition, real-time synchronization, and comprehensive game management.
 
-**Technical Approach**: Static React application deployed to Cloudflare Pages using Next.js 14+ App Router with three route groups: `(host)`, `(player)`, and `(tv)`. All backend services provided by Supabase (PostgreSQL with RLS, Auth, Realtime broadcast channels). Answer shuffling uses server-generated randomization seed stored per question instance for consistent display across all clients. Question reuse prevention tracked via `question_usage` table with composite indexes. Real-time synchronization via Supabase Realtime broadcast channels (not table subscriptions) with exponential backoff reconnection logic.
+**Technical Approach**: Static React application deployed to Cloudflare Pages using **Vite + React Router** for client-side routing. All backend services provided by Supabase (PostgreSQL with RLS, Auth, Realtime broadcast channels). Answer shuffling uses client-generated randomization seed stored per question instance for consistent display across all clients. Question reuse prevention tracked via `question_usage` table with composite indexes. Real-time synchronization via Supabase Realtime broadcast channels (not table subscriptions) with exponential backoff reconnection logic.
+
+**NOTE**: Originally planned with Next.js App Router, but migrated to Vite for better static site generation performance and simpler client-side routing. See `VITE_MIGRATION.md` for details.
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5+ (strict mode, no `any` types), React 18+, Node.js 18+ (build-time only)
+**Language/Version**: TypeScript 5+ (strict mode, no `any` types), React 19+, Node.js 18+ (build-time only)
 **Primary Dependencies**:
-- Next.js 14+ (App Router, Server Components)
+- **Vite 7+** (fast dev server, static site build)
+- **React Router 7** (client-side routing)
 - Supabase client library (`@supabase/supabase-js`)
 - shadcn/ui + Tailwind CSS + Radix UI primitives
 - Zod (runtime schema validation)
@@ -156,36 +159,33 @@ specs/001-initial-game-setup/
 ### Source Code (repository root)
 
 ```
-app/                          # Next.js 14+ App Router
-├── (host)/                   # Host interface route group
-│   ├── layout.tsx           # Host-specific layout with auth guard
-│   ├── dashboard/
-│   │   └── page.tsx         # Host dashboard (game list)
-│   └── games/[gameId]/
-│       ├── setup/
-│       │   └── page.tsx     # Game configuration & preview
-│       ├── control/
-│       │   └── page.tsx     # Active game controls
-│       └── scores/
-│           └── page.tsx     # Score display
-├── (player)/                 # Player interface route group (mobile-first)
-│   ├── layout.tsx           # Player-specific layout
-│   ├── join/
-│   │   └── page.tsx         # Game code entry / QR scan
-│   ├── lobby/
-│   │   └── page.tsx         # Pre-game team lobby
-│   └── game/[gameId]/
-│       └── page.tsx         # Active game (questions & answers)
-├── (tv)/                     # TV display route group (public, no auth)
-│   └── [gameCode]/
-│       ├── lobby/
-│       │   └── page.tsx     # Pre-game team list
-│       ├── question/
-│       │   └── page.tsx     # Question display
-│       └── scores/
-│           └── page.tsx     # Scoreboard
-└── api/                      # Next.js API routes (delegating to Supabase)
-    └── (endpoints TBD)       # Minimal - prefer Supabase direct client calls
+src/                          # Vite source directory
+├── pages/                    # Page components (React Router routes)
+│   ├── HomePage.tsx         # Landing page
+│   ├── TestPage.tsx         # Architecture test page
+│   ├── host/                # Host interface pages
+│   │   ├── HostLoginPage.tsx
+│   │   ├── HostDashboardPage.tsx
+│   │   └── games/
+│   │       ├── GameSetupPage.tsx      # Game configuration & preview
+│   │       ├── GameControlPage.tsx    # Active game controls
+│   │       └── GameScoresPage.tsx     # Score display
+│   ├── player/              # Player interface pages (mobile-first)
+│   │   ├── PlayerLoginPage.tsx
+│   │   ├── PlayerJoinPage.tsx         # Game code entry / QR scan
+│   │   ├── PlayerLobbyPage.tsx        # Pre-game team lobby
+│   │   └── PlayerGamePage.tsx         # Active game (questions & answers)
+│   └── tv/                  # TV display pages (public, no auth)
+│       ├── TvLobbyPage.tsx            # Pre-game team list
+│       ├── TvQuestionPage.tsx         # Question display
+│       └── TvScoresPage.tsx           # Scoreboard
+├── lib/                      # Client-side services and utilities
+│   ├── services/            # Supabase service wrappers
+│   ├── hooks/               # React hooks
+│   └── utils/               # Helper functions
+├── types/                    # TypeScript type definitions
+├── App.tsx                   # React Router configuration
+└── main.tsx                  # Application entry point
 
 components/
 ├── ui/                       # shadcn/ui primitives (button, card, dialog, etc.)
@@ -256,19 +256,20 @@ supabase/
 └── seed.sql                 # Seed data (test hosts, games)
 ```
 
-**Structure Decision**: Next.js App Router with three route groups for interface separation. This provides:
-- Clear separation of concerns (host/player/TV interfaces)
-- Independent layouts and authentication guards per interface
-- URL structure reflects user roles: `/dashboard`, `/join`, `/[gameCode]/lobby`
-- Static export compatible (all pages can be pre-rendered or client-rendered)
+**Structure Decision**: Vite + React Router with separate page components for interface separation. This provides:
+- Clear separation of concerns (host/player/TV interfaces organized in `src/pages/`)
+- Client-side routing with React Router for SPA navigation
+- URL structure reflects user roles: `/host/dashboard`, `/player/join`, `/tv/[gameCode]/lobby`
+- Fast dev server with instant HMR (Hot Module Replacement)
+- Optimized static build output in `dist/` directory
 - Aligns with constitution's static React requirement
 
 ## Phase 0: Outline & Research
 
 No unknowns in Technical Context - all decisions resolved during specification and constitutional alignment. Proceeding directly to `research.md` generation to document rationale for technology choices.
 
-**Research Topics**:
-1. **Next.js App Router** for static site generation with route groups
+**Research Topics** (See `research.md` for detailed analysis):
+1. **Vite + React Router** for static site generation (migrated from Next.js for better SPA performance)
 2. **Supabase Realtime** broadcast channels vs. table subscriptions for game state
 3. **Answer shuffling** algorithm with seeded randomization for consistency
 4. **Question reuse prevention** query patterns with large dataset (61k+ rows)

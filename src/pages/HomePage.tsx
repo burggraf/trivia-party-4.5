@@ -1,10 +1,8 @@
-'use client'
-
-import Link from 'next/link'
+import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { getCurrentUser } from '@/lib/services/auth-service'
 
-export default function Home() {
+export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -29,13 +27,13 @@ export default function Home() {
               <p className="text-xl">Welcome back, {user.email}!</p>
               <div className="flex gap-4 justify-center">
                 <Link
-                  href="/host/dashboard"
+                  to="/host/dashboard"
                   className="px-8 py-4 bg-white text-purple-600 rounded-lg font-bold hover:bg-gray-100 transition"
                 >
                   Host Dashboard
                 </Link>
                 <Link
-                  href="/player/join"
+                  to="/player/join"
                   className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold hover:bg-gray-100 transition"
                 >
                   Join Game
@@ -45,13 +43,13 @@ export default function Home() {
           ) : (
             <div className="flex gap-4 justify-center">
               <Link
-                href="/host/login"
+                to="/host/login"
                 className="px-8 py-4 bg-white text-purple-600 rounded-lg font-bold hover:bg-gray-100 transition"
               >
                 Host Login
               </Link>
               <Link
-                href="/player/login"
+                to="/player/login"
                 className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold hover:bg-gray-100 transition"
               >
                 Player Login
@@ -64,7 +62,7 @@ export default function Home() {
           <p>✅ Client-Side Only • ✅ Static Export • ✅ Supabase Backend</p>
           <p className="mt-2">Database: {loading ? 'Checking...' : '61,254 questions loaded'}</p>
           <p className="mt-4">
-            <Link href="/test" className="text-blue-300 hover:text-blue-200 underline">
+            <Link to="/test" className="text-blue-300 hover:text-blue-200 underline">
               🧪 Test Client-Side Services
             </Link>
           </p>

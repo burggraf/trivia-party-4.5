@@ -1,5 +1,4 @@
-'use client'
-
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { signInAnonymous, getCurrentUser } from '@/lib/services/auth-service'
@@ -118,12 +117,9 @@ export default function TestPage() {
         </div>
 
         <div className="mt-8 text-center">
-          <a
-            href="/"
-            className="text-blue-400 hover:text-blue-300 underline"
-          >
+          <Link to="/" className="text-blue-400 hover:text-blue-300 underline">
             ← Back to Home
-          </a>
+          </Link>
         </div>
       </div>
     </div>
