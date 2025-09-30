@@ -37,8 +37,22 @@ export default function PlayerLoginPage() {
     setLoading(true)
 
     try {
-      // TODO: Implement anonymous authentication
-      console.log('Anonymous login')
+      const { signInAnonymous } = await import('@/lib/services/auth-service')
+      const playerName = prompt('Enter your name:')
+
+      if (!playerName || !playerName.trim()) {
+        setError('Name is required for anonymous login')
+        setLoading(false)
+        return
+      }
+
+      const result = await signInAnonymous({ displayName: playerName.trim() })
+
+      if (result.error) {
+        setError(result.error.message)
+        return
+      }
+
       navigate('/player/join')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to continue')
@@ -107,10 +121,25 @@ export default function PlayerLoginPage() {
             Continue as Guest
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground">
-            <Link to="/" className="hover:text-foreground">
-              ← Back to Home
-            </Link>
+          <div className="space-y-4">
+            <div className="text-center text-sm">
+              <Link to="/player/forgot-password" className="text-primary hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
+            <div className="text-center text-sm">
+              <span className="text-muted-foreground">Don't have an account? </span>
+              <Link to="/player/register" className="text-primary hover:underline">
+                Register
+              </Link>
+            </div>
+
+            <div className="text-center text-sm text-muted-foreground">
+              <Link to="/" className="hover:text-foreground">
+                Back to Home
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>

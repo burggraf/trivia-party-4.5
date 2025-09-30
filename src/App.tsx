@@ -2,11 +2,15 @@ import { Routes, Route } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import TestPage from './pages/TestPage'
 import HostLoginPage from './pages/host/HostLoginPage'
+import HostRegisterPage from './pages/host/HostRegisterPage'
+import HostForgotPasswordPage from './pages/host/HostForgotPasswordPage'
 import HostDashboardPage from './pages/host/HostDashboardPage'
 import GameCreatePage from './pages/host/games/GameCreatePage'
 import GameControlPage from './pages/host/games/GameControlPage'
 import GameScoresPage from './pages/host/games/GameScoresPage'
 import PlayerLoginPage from './pages/player/PlayerLoginPage'
+import PlayerRegisterPage from './pages/player/PlayerRegisterPage'
+import PlayerForgotPasswordPage from './pages/player/PlayerForgotPasswordPage'
 import JoinGamePage from './pages/player/JoinGamePage'
 import LobbyPage from './pages/player/LobbyPage'
 import GamePage from './pages/player/GamePage'
@@ -20,11 +24,15 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/test" element={<TestPage />} />
       <Route path="/host/login" element={<HostLoginPage />} />
+      <Route path="/host/register" element={<HostRegisterPage />} />
+      <Route path="/host/forgot-password" element={<HostForgotPasswordPage />} />
       <Route path="/host/dashboard" element={<HostDashboardPage />} />
       <Route path="/host/games/create" element={<GameCreatePage />} />
       <Route path="/host/games/:gameId/control" element={<GameControlPage />} />
       <Route path="/host/games/:gameId/scores" element={<GameScoresPage />} />
       <Route path="/player/login" element={<PlayerLoginPage />} />
+      <Route path="/player/register" element={<PlayerRegisterPage />} />
+      <Route path="/player/forgot-password" element={<PlayerForgotPasswordPage />} />
       <Route path="/player/join" element={<JoinGamePage />} />
       <Route path="/player/lobby/:gameCode" element={<LobbyPage />} />
       <Route path="/player/game/:gameId" element={<GamePage />} />

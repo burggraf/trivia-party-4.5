@@ -75,11 +75,25 @@ export default function HostLoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 space-y-2 text-center text-sm text-muted-foreground">
-            <p>Test account: testhost@example.com / testpass123</p>
-            <Link to="/" className="text-primary hover:underline block">
-              Back to Home
-            </Link>
+          <div className="mt-6 space-y-4">
+            <div className="text-center text-sm">
+              <Link to="/host/forgot-password" className="text-primary hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
+            <div className="text-center text-sm">
+              <span className="text-muted-foreground">Don't have an account? </span>
+              <Link to="/host/register" className="text-primary hover:underline">
+                Register
+              </Link>
+            </div>
+
+            <div className="text-center text-sm">
+              <Link to="/" className="text-muted-foreground hover:text-foreground">
+                Back to Home
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>
