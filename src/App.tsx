@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage'
 import TestPage from './pages/TestPage'
 import HostLoginPage from './pages/host/HostLoginPage'
 import HostDashboardPage from './pages/host/HostDashboardPage'
+import GameCreatePage from './pages/host/games/GameCreatePage'
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route path="/test" element={<TestPage />} />
       <Route path="/host/login" element={<HostLoginPage />} />
       <Route path="/host/dashboard" element={<HostDashboardPage />} />
+      <Route path="/host/games/create" element={<GameCreatePage />} />
     </Routes>
   )
 }
