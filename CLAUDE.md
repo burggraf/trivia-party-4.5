@@ -277,7 +277,120 @@ export function createGameChannel(gameId: string): RealtimeChannel
 - Question selection query: <100ms
 - Mobile First Contentful Paint: <3s on 3G
 
+## UI Design System & Component Standards
+
+### Mandatory Use of shadcn/ui Components
+
+**CRITICAL**: ALL UI components MUST use shadcn/ui primitives. Never create custom buttons, cards, inputs, etc.
+
+**Installing shadcn/ui components**:
+```bash
+# Install a component (example: button)
+npx shadcn@latest add button
+
+# Components are added to src/components/ui/
+# Import and use in your pages
+```
+
+**Available shadcn/ui components** (install as needed):
+- `button` - All buttons (primary, secondary, ghost, outline)
+- `card` - Content containers with header/footer
+- `input` - Form text inputs
+- `label` - Form labels
+- `select` - Dropdowns
+- `textarea` - Multi-line text inputs
+- `checkbox` - Checkbox inputs
+- `radio-group` - Radio button groups
+- `dialog` - Modal dialogs
+- `alert` - Alert messages
+- `badge` - Status badges
+- `table` - Data tables
+- `skeleton` - Loading skeletons
+- `toast` - Toast notifications
+
+### Design System Principles
+
+**Color Palette** (muted, minimalistic):
+- Background: `bg-background` (light gray/white)
+- Cards/surfaces: `bg-card` (slightly elevated)
+- Primary actions: `bg-primary` (subtle blue/gray)
+- Text: `text-foreground` (dark gray, not pure black)
+- Muted text: `text-muted-foreground`
+- Borders: `border` (light gray)
+- Destructive actions: `bg-destructive` (muted red)
+
+**Typography**:
+- Headings: Use semantic HTML (`h1`, `h2`, `h3`) with Tailwind classes
+- Body text: `text-sm` or `text-base` with `text-muted-foreground` for secondary text
+- Keep it minimal - avoid excessive font sizes or weights
+
+**Spacing & Layout**:
+- Use consistent spacing: `space-y-4`, `gap-4`, `p-4`, `p-6`
+- Cards should have `rounded-lg border bg-card text-card-foreground shadow-sm`
+- Page containers: `max-w-7xl mx-auto p-6`
+- Forms: Use `space-y-4` for form fields
+
+**Component Usage Examples**:
+
+```typescript
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
+// ✅ Good: Using shadcn/ui components
+export default function GameSetup() {
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Create New Game</CardTitle>
+          <CardDescription>Configure your trivia game settings</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="gameName">Game Name</Label>
+            <Input id="gameName" placeholder="Friday Night Trivia" />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button>Create Game</Button>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}
+
+// ❌ Bad: Creating custom styled elements
+export default function GameSetup() {
+  return (
+    <div>
+      <div style={{ border: '1px solid gray', padding: '20px' }}>
+        <h1>Create Game</h1>
+        <input type="text" />
+        <button style={{ background: 'blue', color: 'white' }}>Create</button>
+      </div>
+    </div>
+  )
+}
+```
+
+**Avoid**:
+- ❌ Emojis (unless explicitly requested)
+- ❌ Bright, vibrant colors
+- ❌ Heavy gradients or shadows
+- ❌ Custom styled elements instead of shadcn/ui components
+- ❌ Inconsistent spacing or typography
+- ❌ Overly complex layouts
+
+**Interface-Specific Considerations**:
+- **Host Interface**: Professional, desktop-optimized, data-dense tables and controls
+- **Player Interface**: Mobile-first, large touch targets, simple navigation
+- **TV Display**: High contrast, large text, minimal UI chrome
+
 ## Common Pitfalls to Avoid
+
+❌ **CRITICAL: Not using shadcn/ui components** - ALL buttons, inputs, cards, etc. MUST use shadcn/ui. Never create custom styled elements.
 
 ❌ **CRITICAL: Creating server-side code** - This is a pure static site. NO server-side routes, API endpoints, or server-side rendering. All Supabase operations MUST happen client-side using the browser client (`src/lib/supabase/client.ts`)
 

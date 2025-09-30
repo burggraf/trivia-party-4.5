@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { getCurrentUser } from '@/lib/services/auth-service'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import type { User } from '@supabase/supabase-js'
 
 export default function HomePage() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -14,60 +17,70 @@ export default function HomePage() {
   }, [])
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-br from-purple-600 to-blue-600">
-      <div className="text-center text-white">
-        <h1 className="text-6xl font-bold mb-4">🎮 Trivia Party</h1>
-        <p className="text-2xl mb-8">Multi-User Real-Time Trivia</p>
+    <div className="min-h-screen bg-background">
+      <main className="container mx-auto px-6 py-16 max-w-4xl">
+        <div className="text-center space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight">Trivia Party</h1>
+            <p className="text-lg text-muted-foreground">
+              Multi-User Real-Time Trivia Application
+            </p>
+          </div>
 
-        <div className="space-y-4 mt-12">
-          {loading ? (
-            <p className="text-xl">Loading...</p>
-          ) : user ? (
-            <div className="space-y-4">
-              <p className="text-xl">Welcome back, {user.email}!</p>
-              <div className="flex gap-4 justify-center">
-                <Link
-                  to="/host/dashboard"
-                  className="px-8 py-4 bg-white text-purple-600 rounded-lg font-bold hover:bg-gray-100 transition"
-                >
-                  Host Dashboard
-                </Link>
-                <Link
-                  to="/player/join"
-                  className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold hover:bg-gray-100 transition"
-                >
-                  Join Game
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="flex gap-4 justify-center">
-              <Link
-                to="/host/login"
-                className="px-8 py-4 bg-white text-purple-600 rounded-lg font-bold hover:bg-gray-100 transition"
-              >
-                Host Login
-              </Link>
-              <Link
-                to="/player/login"
-                className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold hover:bg-gray-100 transition"
-              >
-                Player Login
-              </Link>
-            </div>
-          )}
-        </div>
+          <div className="flex justify-center pt-8">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Get Started</CardTitle>
+                <CardDescription>
+                  {loading
+                    ? 'Loading...'
+                    : user
+                      ? `Welcome back, ${user.email}`
+                      : 'Choose your role to begin'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {loading ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    Loading...
+                  </div>
+                ) : user ? (
+                  <>
+                    <Button asChild className="w-full" size="lg">
+                      <Link to="/host/dashboard">Host Dashboard</Link>
+                    </Button>
+                    <Button asChild variant="secondary" className="w-full" size="lg">
+                      <Link to="/player/join">Join Game</Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button asChild className="w-full" size="lg">
+                      <Link to="/host/login">Host Login</Link>
+                    </Button>
+                    <Button asChild variant="secondary" className="w-full" size="lg">
+                      <Link to="/player/login">Player Login</Link>
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-        <div className="mt-16 text-sm text-white/80">
-          <p>✅ Client-Side Only • ✅ Static Export • ✅ Supabase Backend</p>
-          <p className="mt-2">Database: {loading ? 'Checking...' : '61,254 questions loaded'}</p>
-          <p className="mt-4">
-            <Link to="/test" className="text-blue-300 hover:text-blue-200 underline">
-              🧪 Test Client-Side Services
-            </Link>
-          </p>
+          <div className="pt-12 space-y-2 text-sm text-muted-foreground">
+            <p>Static Client-Side Application with Supabase Backend</p>
+            <p>Database: {loading ? 'Checking...' : '61,254 questions available'}</p>
+            <p className="pt-4">
+              <Link
+                to="/test"
+                className="text-primary hover:underline underline-offset-4"
+              >
+                Test Client-Side Services
+              </Link>
+            </p>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }
