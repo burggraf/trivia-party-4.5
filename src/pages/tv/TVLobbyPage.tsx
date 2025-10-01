@@ -111,6 +111,28 @@ export default function TVLobbyPage() {
             })
           }
           break
+
+        case 'team_left':
+          // Reload teams when a player leaves
+          if (game) {
+            getTeams(game.id).then(async ({ teams: teamsData }) => {
+              const teamsWithCounts = await Promise.all(
+                teamsData.map(async (team) => {
+                  const { count } = await supabase
+                    .from('team_members')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('team_id', team.id)
+
+                  return {
+                    ...team,
+                    playerCount: count || 0,
+                  }
+                })
+              )
+              setTeams(teamsWithCounts)
+            })
+          }
+          break
       }
     })
 

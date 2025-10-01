@@ -68,25 +68,9 @@ export default function JoinGamePage() {
 
       setGame(gameData)
 
-      // Load existing teams
+      // Load existing teams (already includes team_members from getTeams)
       const { teams: teamsData } = await getTeams(gameData.id)
-
-      // Get member counts for each team
-      const teamsWithCounts = await Promise.all(
-        teamsData.map(async (team) => {
-          const { count } = await supabase
-            .from('team_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('team_id', team.id)
-
-          return {
-            ...team,
-            team_members: team.team_members || [],
-          }
-        })
-      )
-
-      setTeams(teamsWithCounts as Team[])
+      setTeams(teamsData as Team[])
       setShowTeamSelection(true)
       setLoading(false)
     } catch (err) {

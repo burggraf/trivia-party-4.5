@@ -2,11 +2,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { getGame } from '@/lib/services/game-service'
-import { getTeams, getTeamMembers } from '@/lib/services/team-service'
+import { getTeams, getTeamMembers, leaveTeam } from '@/lib/services/team-service'
 import { subscribeToGameEvents } from '@/lib/realtime/channels'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import type { Database } from '@/types/database.types'
 
 type Game = Database['public']['Tables']['games']['Row']
@@ -26,6 +27,7 @@ export default function LobbyPage() {
   const [currentTeam, setCurrentTeam] = useState<Team | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [leaving, setLeaving] = useState(false)
 
   // Subscribe to real-time game events
   useEffect(() => {
@@ -51,6 +53,11 @@ export default function LobbyPage() {
         navigate(`/player/game/${gameId}`)
       } else if (eventType === 'team_joined') {
         // Reload teams when a new team joins
+        getTeams(gameId).then(({ teams: teamsData }) => {
+          setTeams(teamsData)
+        })
+      } else if (eventType === 'team_left') {
+        // Reload teams when a player leaves
         getTeams(gameId).then(({ teams: teamsData }) => {
           setTeams(teamsData)
         })
@@ -146,6 +153,22 @@ export default function LobbyPage() {
 
     loadLobbyData()
   }, [gameId, teamId])
+
+  const handleLeaveGame = async () => {
+    if (!teamId || !gameId) return
+
+    setLeaving(true)
+    const { error: leaveError } = await leaveTeam(teamId, gameId)
+
+    if (leaveError) {
+      setError('Failed to leave game: ' + leaveError.message)
+      setLeaving(false)
+      return
+    }
+
+    // Navigate back to join page
+    navigate('/player/join')
+  }
 
   if (loading) {
     return (
@@ -280,10 +303,14 @@ export default function LobbyPage() {
           </CardContent>
         </Card>
 
-        <div className="mt-6 text-center text-sm text-muted-foreground">
-          <Link to="/player/join" className="hover:text-foreground">
-            ← Leave Game
-          </Link>
+        <div className="mt-6 text-center">
+          <Button
+            variant="ghost"
+            onClick={handleLeaveGame}
+            disabled={leaving}
+          >
+            {leaving ? 'Leaving...' : '← Leave Game'}
+          </Button>
         </div>
       </div>
     </div>

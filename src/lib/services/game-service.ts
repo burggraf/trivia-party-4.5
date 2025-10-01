@@ -254,7 +254,7 @@ export async function findGameByCode(gameCode: string) {
 
   const { data: game, error } = await supabase
     .from('games')
-    .select('id, name, venue_name, status')
+    .select('*')
     .eq('game_code', gameCode.toUpperCase())
     .single()
 

@@ -209,6 +209,97 @@ export async function joinTeam(teamId: string) {
 }
 
 // ============================================================================
+// Team Leaving (FR-031, FR-032)
+// ============================================================================
+
+/**
+ * Leave a team (remove team membership)
+ * Implements FR-031 (leave team), FR-032 (delete empty teams)
+ */
+export async function leaveTeam(teamId: string, gameId: string) {
+
+
+  try {
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: new Error('You must be logged in to leave a team'),
+      }
+    }
+
+    // Get team info before deleting
+    const { data: team, error: teamError } = await supabase
+      .from('teams')
+      .select('id, team_name, game_id')
+      .eq('id', teamId)
+      .single()
+
+    if (teamError || !team) {
+      return {
+        success: false,
+        error: new Error('Team not found'),
+      }
+    }
+
+    // Delete team membership
+    const { error: deleteError } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('team_id', teamId)
+      .eq('player_id', user.id)
+
+    if (deleteError) {
+      console.error('Failed to leave team:', deleteError)
+      return {
+        success: false,
+        error: new Error('Failed to leave team'),
+      }
+    }
+
+    // Check if team is now empty
+    const { count: remainingMembers } = await supabase
+      .from('team_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('team_id', teamId)
+
+    // If team is empty, delete it (FR-032)
+    if (remainingMembers === 0) {
+      await supabase.from('teams').delete().eq('id', teamId)
+    }
+
+    // Broadcast team_left event via realtime
+    try {
+      const channel = createGameChannel(gameId)
+      await channel.subscribe()
+      await broadcastGameEvent(channel, 'team_left', {
+        team_id: teamId,
+        team_name: team.team_name,
+        player_id: user.id,
+        team_deleted: remainingMembers === 0,
+      })
+      await channel.unsubscribe()
+    } catch (broadcastError) {
+      console.error('Failed to broadcast team_left event:', broadcastError)
+      // Don't fail the operation if broadcast fails
+    }
+
+    return { success: true, error: null }
+  } catch (error) {
+    console.error('Unexpected error in leaveTeam:', error)
+    return {
+      success: false,
+      error: error as Error,
+    }
+  }
+}
+
+// ============================================================================
 // Team Retrieval
 // ============================================================================
 

@@ -121,6 +121,13 @@ export default function GameControlPage() {
           })
           break
 
+        case 'team_left':
+          // Reload teams when a player leaves
+          getTeams(gameId).then(({ teams: teamsData }) => {
+            setTeams(teamsData as Team[])
+          })
+          break
+
         case 'game_paused':
         case 'game_resumed':
           // Update game state
