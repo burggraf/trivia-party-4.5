@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Trash2, Edit } from 'lucide-react'
+import { Trash2, Edit, Play, Trophy } from 'lucide-react'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 
 type Game = Database['public']['Tables']['games']['Row']
@@ -210,18 +210,39 @@ export default function HostDashboardPage() {
                             </Button>
                           )}
                           {game.status === 'active' && (
-                            <Button asChild>
-                              <Link to={`/host/games/${game.id}/control`}>Control Game</Link>
+                            <Button
+                              asChild
+                              variant="default"
+                              size="icon"
+                              title="Control game"
+                            >
+                              <Link to={`/host/games/${game.id}/control`}>
+                                <Play className="h-4 w-4" />
+                              </Link>
                             </Button>
                           )}
                           {game.status === 'paused' && (
-                            <Button asChild variant="outline">
-                              <Link to={`/host/games/${game.id}/control`}>Resume Game</Link>
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="icon"
+                              title="Resume game"
+                            >
+                              <Link to={`/host/games/${game.id}/control`}>
+                                <Play className="h-4 w-4" />
+                              </Link>
                             </Button>
                           )}
                           {game.status === 'completed' && (
-                            <Button asChild variant="secondary">
-                              <Link to={`/host/games/${game.id}/scores`}>View Results</Link>
+                            <Button
+                              asChild
+                              variant="secondary"
+                              size="icon"
+                              title="View results"
+                            >
+                              <Link to={`/host/games/${game.id}/scores`}>
+                                <Trophy className="h-4 w-4" />
+                              </Link>
                             </Button>
                           )}
                           <Button
