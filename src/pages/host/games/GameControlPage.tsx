@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/hooks/use-auth'
 import { getGame, getCurrentQuestion, advanceGameState, pauseGame, resumeGame, endGame, getGameScores, type GameState } from '@/lib/services/game-service'
 import { getTeams } from '@/lib/services/team-service'
 import { supabase } from '@/lib/supabase/client'
-import { subscribeToGameEvents } from '@/lib/realtime/channels'
+import { subscribeToGameEvents, subscribeToTVUpdates } from '@/lib/realtime/channels'
 import { answersFromQuestion, shuffleAnswers } from '@/lib/game/answer-shuffling'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -44,6 +44,7 @@ export default function GameControlPage() {
   const [question, setQuestion] = useState<QuestionData | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
   const [teamScores, setTeamScores] = useState<Array<{ teamId: string; teamName: string; score: number; cumulativeTime: number; accuracy: number }>>([])
+  const [teamsAnswered, setTeamsAnswered] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
@@ -137,6 +138,9 @@ export default function GameControlPage() {
           if (payload.state === 'question_active' && payload.question) {
             const q = payload.question
 
+            // Reset teams answered counter for new question
+            setTeamsAnswered(0)
+
             // Host receives same pre-shuffled answers as players/TV
             setQuestion({
               id: q.id,
@@ -163,6 +167,19 @@ export default function GameControlPage() {
       channel.unsubscribe()
     }
   }, [gameId, navigate])
+
+  // Subscribe to TV updates for teams answered count
+  useEffect(() => {
+    if (!game) return
+
+    const tvChannel = subscribeToTVUpdates(game.id, (payload) => {
+      setTeamsAnswered(payload.teams_answered_count)
+    })
+
+    return () => {
+      tvChannel.unsubscribe()
+    }
+  }, [game])
 
   const handleNext = async () => {
     if (!gameId) return
@@ -447,7 +464,7 @@ export default function GameControlPage() {
                       </CardTitle>
                       <CardDescription>Category: {question.category}</CardDescription>
                     </div>
-                    <Badge variant="outline">0 / {teams.length} teams answered</Badge>
+                    <Badge variant="outline">{teamsAnswered} / {teams.length} teams answered</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
