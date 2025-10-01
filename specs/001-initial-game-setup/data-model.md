@@ -66,15 +66,6 @@ This document defines the database schema for the trivia application, including 
   ┌────────────────────┐
   │ leaderboard_cache  │ (aggregated stats per venue)
   └────────────────────┘
-
-Materialized Views:
-  ┌──────────────┐
-  │ game_history │ (completed games for hosts)
-  └──────────────┘
-
-  ┌────────────────────┐
-  │ leaderboard_entries│ (player stats by venue)
-  └────────────────────┘
 ```
 
 ---
@@ -511,130 +502,6 @@ CREATE POLICY game_events_via_game_access ON game_events
 
 ---
 
-## Materialized Views
-
-### game_history
-
-**Purpose**: Completed games with full details for hosts (FR-090)
-
-```sql
-CREATE MATERIALIZED VIEW game_history AS
-SELECT
-  g.id AS game_id,
-  g.host_id,
-  g.name AS game_name,
-  g.venue_name,
-  g.completed_at,
-
-  -- Aggregate stats
-  COUNT(DISTINCT t.id) AS num_teams,
-  COUNT(DISTINCT tm.player_id) AS num_players,
-  COUNT(DISTINCT gq.id) AS num_questions,
-
-  -- Winning team
-  (
-    SELECT t2.team_name
-    FROM teams t2
-    WHERE t2.game_id = g.id
-    ORDER BY t2.score DESC, t2.cumulative_answer_time_ms ASC
-    LIMIT 1
-  ) AS winning_team,
-
-  -- Question details (for host view only)
-  ARRAY_AGG(
-    jsonb_build_object(
-      'question', q.question,
-      'category', q.category,
-      'correct_answer', q.a
-    ) ORDER BY gq.display_order
-  ) AS questions
-
-FROM games g
-JOIN rounds r ON r.game_id = g.id
-JOIN game_questions gq ON gq.game_id = g.id
-JOIN questions q ON q.id = gq.question_id
-LEFT JOIN teams t ON t.game_id = g.id
-LEFT JOIN team_members tm ON tm.team_id = t.id
-
-WHERE g.status = 'completed'
-
-GROUP BY g.id, g.host_id, g.name, g.venue_name, g.completed_at;
-
--- Index
-CREATE UNIQUE INDEX idx_game_history_game_id ON game_history(game_id);
-
--- Refresh strategy: After game completion
-CREATE FUNCTION refresh_game_history(p_game_id UUID)
-RETURNS void AS $$
-BEGIN
-  REFRESH MATERIALIZED VIEW CONCURRENTLY game_history;
-END;
-$$ LANGUAGE plpgsql;
-```
-
----
-
-### leaderboard_entries
-
-**Purpose**: Player statistics by venue (FR-094)
-
-```sql
-CREATE MATERIALIZED VIEW leaderboard_entries AS
-SELECT
-  g.venue_name,
-  pp.id AS player_id,
-  pp.display_name,
-
-  COUNT(DISTINCT tm.game_id) AS games_played,
-  COUNT(DISTINCT CASE WHEN t.score = (
-    SELECT MAX(t2.score) FROM teams t2 WHERE t2.game_id = tm.game_id
-  ) THEN tm.game_id END) AS games_won,
-
-  ROUND(
-    100.0 * COUNT(DISTINCT CASE WHEN t.score = (
-      SELECT MAX(t2.score) FROM teams t2 WHERE t2.game_id = tm.game_id
-    ) THEN tm.game_id END) / NULLIF(COUNT(DISTINCT tm.game_id), 0),
-    2
-  ) AS win_rate,
-
-  ROUND(AVG(t.score), 2) AS avg_score,
-
-  ROUND(
-    100.0 * SUM(CASE WHEN asub.is_correct THEN 1 ELSE 0 END) / NULLIF(COUNT(asub.id), 0),
-    2
-  ) AS accuracy,
-
-  RANK() OVER (
-    PARTITION BY g.venue_name
-    ORDER BY COUNT(DISTINCT CASE WHEN t.score = (
-      SELECT MAX(t2.score) FROM teams t2 WHERE t2.game_id = tm.game_id
-    ) THEN tm.game_id END) DESC
-  ) AS rank
-
-FROM player_profiles pp
-JOIN team_members tm ON tm.player_id = pp.id
-JOIN teams t ON t.id = tm.team_id
-JOIN games g ON g.id = t.game_id
-LEFT JOIN answer_submissions asub ON asub.team_id = t.id
-
-WHERE g.status = 'completed' AND g.venue_name IS NOT NULL
-
-GROUP BY g.venue_name, pp.id, pp.display_name;
-
--- Index
-CREATE UNIQUE INDEX idx_leaderboard_entries_venue_player ON leaderboard_entries(venue_name, player_id);
-
--- Refresh strategy: Hourly or after game completion
-CREATE FUNCTION refresh_leaderboard()
-RETURNS void AS $$
-BEGIN
-  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard_entries;
-END;
-$$ LANGUAGE plpgsql;
-```
-
----
-
 ## Existing Table: questions
 
 **Note**: This table already exists with 61,000+ questions (read-only for this feature)
@@ -666,10 +533,6 @@ CREATE INDEX idx_questions_created_at ON questions(created_at DESC);
 **Tables**: 11 application tables
 - `hosts`, `games`, `rounds`, `game_questions`, `teams`, `team_members`
 - `answer_submissions`, `question_usage`, `player_profiles`, `leaderboard_cache`, `game_events`
-
-**Materialized Views**: 2
-- `game_history` (completed games for hosts)
-- `leaderboard_entries` (player stats by venue)
 
 **Key Indexes** (for performance):
 - `idx_question_usage_host_question` - Critical for reuse prevention queries

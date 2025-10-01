@@ -118,13 +118,6 @@ export type Database = {
             foreignKeyName: "game_questions_game_id_fkey"
             columns: ["game_id"]
             isOneToOne: false
-            referencedRelation: "game_history"
-            referencedColumns: ["game_id"]
-          },
-          {
-            foreignKeyName: "game_questions_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
             referencedRelation: "games"
             referencedColumns: ["id"]
           },
@@ -347,13 +340,6 @@ export type Database = {
             foreignKeyName: "question_usage_game_id_fkey"
             columns: ["game_id"]
             isOneToOne: false
-            referencedRelation: "game_history"
-            referencedColumns: ["game_id"]
-          },
-          {
-            foreignKeyName: "question_usage_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
             referencedRelation: "games"
             referencedColumns: ["id"]
           },
@@ -439,13 +425,6 @@ export type Database = {
             foreignKeyName: "rounds_game_id_fkey"
             columns: ["game_id"]
             isOneToOne: false
-            referencedRelation: "game_history"
-            referencedColumns: ["game_id"]
-          },
-          {
-            foreignKeyName: "rounds_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
             referencedRelation: "games"
             referencedColumns: ["id"]
           },
@@ -513,13 +492,6 @@ export type Database = {
             foreignKeyName: "teams_game_id_fkey"
             columns: ["game_id"]
             isOneToOne: false
-            referencedRelation: "game_history"
-            referencedColumns: ["game_id"]
-          },
-          {
-            foreignKeyName: "teams_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
             referencedRelation: "games"
             referencedColumns: ["id"]
           },
@@ -527,43 +499,7 @@ export type Database = {
       }
     }
     Views: {
-      game_history: {
-        Row: {
-          completed_at: string | null
-          game_id: string | null
-          game_name: string | null
-          host_id: string | null
-          num_players: number | null
-          num_questions: number | null
-          num_teams: number | null
-          questions: Json[] | null
-          venue_name: string | null
-          winning_team: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "games_host_id_fkey"
-            columns: ["host_id"]
-            isOneToOne: false
-            referencedRelation: "hosts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leaderboard_entries: {
-        Row: {
-          accuracy: number | null
-          avg_score: number | null
-          display_name: string | null
-          games_played: number | null
-          games_won: number | null
-          player_id: string | null
-          rank: number | null
-          venue_name: string | null
-          win_rate: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       count_available_questions: {
@@ -572,14 +508,6 @@ export type Database = {
           in_all_categories: number
           in_selected_categories: number
         }[]
-      }
-      refresh_game_history: {
-        Args: { p_game_id: string }
-        Returns: undefined
-      }
-      refresh_leaderboard: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       select_questions_for_host: {
         Args: { p_categories: string[]; p_count: number; p_host_id: string }

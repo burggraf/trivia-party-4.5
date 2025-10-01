@@ -55,10 +55,9 @@
 - Playwright (E2E integration tests)
 
 **Storage**: Supabase PostgreSQL with Row-Level Security (RLS)
-- 11 application tables + 2 materialized views
+- 11 application tables
 - Existing `questions` table (61,000+ rows) with category index
 - `question_usage` table for reuse prevention (composite index on `host_id, question_id`)
-- Materialized views: `game_history`, `leaderboard_entries`
 
 **Testing**:
 - Vitest for unit tests (pure functions: scoring, shuffling, question selection)
@@ -306,10 +305,6 @@ No unknowns in Technical Context - all decisions resolved during specification a
 **Existing Table** (read-only):
 - `questions` (61,000+ trivia questions with categories)
 
-**Materialized Views**:
-- `game_history` (completed games with full details for hosts)
-- `leaderboard_entries` (player statistics by venue)
-
 **Key Relationships**:
 - `games` ↔ `hosts` (1:N, RLS enforces host ownership)
 - `games` ↔ `rounds` (1:N)
@@ -507,7 +502,6 @@ Run `.specify/scripts/bash/update-agent-context.sh claude` to generate/update `C
    - T048: Create migration for `question_usage` table (composite index)
    - T049: Create migration for `player_profiles` table
    - T050: Create migration for `leaderboard_cache` table
-   - T051: Create materialized views (`game_history`, `leaderboard_entries`)
 
 6. **Generate API Implementation Tasks** (T052-T076) - Make contract tests pass:
    - One task per endpoint to implement business logic

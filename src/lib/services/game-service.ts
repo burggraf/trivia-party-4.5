@@ -529,11 +529,6 @@ export async function endGame(gameId: string) {
     .select()
     .single()
 
-  // Refresh game history materialized view
-  if (game) {
-    await supabase.rpc('refresh_game_history', { p_game_id: gameId })
-  }
-
   return { game, error }
 }
 
@@ -733,11 +728,6 @@ export async function advanceGameState(gameId: string): Promise<AdvanceStateResu
       })
     } catch (broadcastError) {
       console.error('Failed to broadcast state_changed:', broadcastError)
-    }
-
-    // Refresh game history if completed
-    if (nextState === 'game_complete') {
-      await supabase.rpc('refresh_game_history', { p_game_id: gameId })
     }
 
     return {
