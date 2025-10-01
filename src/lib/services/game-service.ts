@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase/client'
 import { selectQuestions, recordQuestionUsage } from '@/lib/game/question-selection'
 import { generateGameCode } from '@/lib/utils/game-code'
 import { createGameChannel, broadcastGameEvent } from '@/lib/realtime/channels'
+import { answersFromQuestion, shuffleAnswers } from '@/lib/game/answer-shuffling'
 import type { CreateGameRequest, CreateGameResponse } from '@/types/api.types'
 import type { Database } from '@/types/database.types'
 
@@ -714,9 +715,34 @@ export async function advanceGameState(gameId: string): Promise<AdvanceStateResu
         const { question: questionData } = await getCurrentQuestion(gameId)
         if (questionData) {
           const gameQuestion = questionData as any
-          eventPayload.question = gameQuestion.question
+          const q = gameQuestion.question
+
+          // SECURITY: Shuffle answers server-side and only send shuffled array
+          // Players receive pre-shuffled answers with NO indication of which is correct
+          const answerObjects = answersFromQuestion(q, 'a')
+          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
+
+          eventPayload.question = {
+            id: q.id,
+            category: q.category,
+            question: q.question,
+            // Only send answer TEXT in shuffled order (no letters, no is_correct flags)
+            answers: shuffledAnswers.map(a => a.text),
+          }
           eventPayload.gameQuestionId = gameQuestion.id
-          eventPayload.randomizationSeed = gameQuestion.randomization_seed
+          // Don't send randomization seed to players - it's only needed for server validation
+        }
+      } else if (nextState === 'question_revealed') {
+        // Send correct answer index (0-3) when revealing
+        const { question: questionData } = await getCurrentQuestion(gameId)
+        if (questionData) {
+          const gameQuestion = questionData as any
+          const q = gameQuestion.question
+          const answerObjects = answersFromQuestion(q, 'a')
+          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
+          const correctIndex = shuffledAnswers.findIndex(a => a.is_correct)
+
+          eventPayload.correctAnswerIndex = correctIndex
         }
       }
 
@@ -792,7 +818,7 @@ export async function getCurrentQuestion(gameId: string) {
 export interface SubmitAnswerRequest {
   gameQuestionId: string
   teamId: string
-  selectedAnswer: 'a' | 'b' | 'c' | 'd'
+  selectedAnswerIndex: number // SECURITY: Submit index (0-3), not letter
   answerTimeMs: number
 }
 
@@ -825,8 +851,33 @@ export async function submitAnswer(
       }
     }
 
-    // Determine if answer is correct (in DB, 'a' is always correct)
-    const isCorrect = request.selectedAnswer === 'a'
+    // SECURITY: Validate answer index against shuffle seed server-side
+    // Get question and randomization seed
+    const { data: gameQuestion } = await supabase
+      .from('game_questions')
+      .select('*, question:questions(*)')
+      .eq('id', request.gameQuestionId)
+      .single()
+
+    if (!gameQuestion) {
+      return {
+        submission: null,
+        isCorrect: false,
+        error: new Error('Question not found'),
+      }
+    }
+
+    // Shuffle answers using seed to determine correct index
+    const q = (gameQuestion.question as any)
+    const answerObjects = answersFromQuestion(q, 'a')
+    const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
+    const correctIndex = shuffledAnswers.findIndex(a => a.is_correct)
+
+    // Check if submitted index matches correct index
+    const isCorrect = request.selectedAnswerIndex === correctIndex
+
+    // Map submitted index back to database letter for storage
+    const selectedAnswerLetter = shuffledAnswers[request.selectedAnswerIndex]?.letter || 'a'
 
     // Insert answer submission
     const { data: submission, error } = await supabase
@@ -835,7 +886,7 @@ export async function submitAnswer(
         game_question_id: request.gameQuestionId,
         team_id: request.teamId,
         submitted_by: user.id,
-        selected_answer: request.selectedAnswer,
+        selected_answer: selectedAnswerLetter,
         is_correct: isCorrect,
         answer_time_ms: request.answerTimeMs,
       })

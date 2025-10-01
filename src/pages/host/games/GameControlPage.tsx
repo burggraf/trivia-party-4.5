@@ -134,21 +134,22 @@ export default function GameControlPage() {
             setGame(payload.game)
           }
           // Load question if transitioning to question_active
-          if (payload.state === 'question_active' && payload.question && payload.randomizationSeed) {
+          if (payload.state === 'question_active' && payload.question) {
             const q = payload.question
 
-            // Shuffle answers using seed for consistent ordering
-            const answerObjects = answersFromQuestion(q, 'a')
-            const shuffledAnswers = shuffleAnswers(answerObjects, payload.randomizationSeed)
-            const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
-
+            // Host receives same pre-shuffled answers as players/TV
             setQuestion({
               id: q.id,
               category: q.category,
               question: q.question,
-              answers: shuffledAnswers.map(a => a.text),
-              correctAnswerIndex: correctAnswerIdx,
+              answers: q.answers, // Already shuffled by server
+              correctAnswerIndex: undefined, // Not revealed yet
             })
+          }
+
+          // Update correct answer when revealed
+          if (payload.state === 'question_revealed' && payload.correctAnswerIndex !== undefined) {
+            setQuestion(prev => prev ? { ...prev, correctAnswerIndex: payload.correctAnswerIndex } : null)
           }
           // Navigate to scores page if game is complete
           if (payload.state === 'game_thanks') {
@@ -181,7 +182,7 @@ export default function GameControlPage() {
           const gameQuestion = questionData as any
           const q = gameQuestion.question
 
-          // Shuffle answers using seed for consistent ordering
+          // Host can see shuffled answers AND correct answer for preview
           const answerObjects = answersFromQuestion(q, 'a')
           const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
           const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
@@ -191,9 +192,14 @@ export default function GameControlPage() {
             category: q.category,
             question: q.question,
             answers: shuffledAnswers.map(a => a.text),
-            correctAnswerIndex: correctAnswerIdx,
+            correctAnswerIndex: correctAnswerIdx, // Host sees correct answer immediately
           })
         }
+      }
+
+      // Mark correct answer when revealing
+      if (nextState === 'question_revealed') {
+        // Question already has correctAnswerIndex, just ensure it's set
       }
 
       // Load team scores for round_scores or game_complete states
@@ -396,7 +402,7 @@ export default function GameControlPage() {
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground">Game Code: {game.game_code}</p>
               <Link
-                to={`/tv/${game.game_code}/question`}
+                to={game.game_state === 'setup' ? `/tv/${game.game_code}/lobby` : `/tv/${game.game_code}/question`}
                 target="_blank"
                 className="text-sm text-primary hover:underline"
               >

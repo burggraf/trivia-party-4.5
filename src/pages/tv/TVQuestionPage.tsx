@@ -20,8 +20,8 @@ interface QuestionData {
   id: string
   category: string
   question: string
-  answers: string[]
-  correctAnswerIndex: number
+  answers: string[] // Pre-shuffled by server
+  correctAnswerIndex?: number // Only set when answer is revealed
   timeLimit: number
 }
 
@@ -68,26 +68,8 @@ export default function TVQuestionPage() {
         const { teams } = await getTeams(games.id)
         setTotalTeams(teams.length)
 
-        // Load current question
-        const { question: questionData } = await getCurrentQuestion(games.id)
-        if (questionData) {
-          const gameQuestion = questionData as any
-          const q = gameQuestion.question
-
-          // Shuffle answers using seed for consistent ordering across all clients
-          const answerObjects = answersFromQuestion(q, 'a')
-          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
-          const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
-
-          setQuestion({
-            id: q.id,
-            category: q.category,
-            question: q.question,
-            answers: shuffledAnswers.map(a => a.text),
-            correctAnswerIndex: correctAnswerIdx,
-            timeLimit: games.time_limit_seconds,
-          })
-        }
+        // TV displays wait for broadcast from host (no initial question load)
+        // Question will come via real-time broadcast
 
         setLoading(false)
       } catch (err) {
@@ -123,25 +105,24 @@ export default function TVQuestionPage() {
               setTimeRemaining(payload.game.time_limit_seconds)
             }
 
-            if (payload.question && payload.randomizationSeed) {
+            if (payload.question) {
               const q = payload.question
 
-              // Shuffle answers using seed for consistent ordering across all clients
-              const answerObjects = answersFromQuestion(q, 'a')
-              const shuffledAnswers = shuffleAnswers(answerObjects, payload.randomizationSeed)
-              const correctAnswerIdx = shuffledAnswers.findIndex(a => a.is_correct)
-
+              // Server sends pre-shuffled answers (no seed needed)
               setQuestion({
                 id: q.id,
                 category: q.category,
                 question: q.question,
-                answers: shuffledAnswers.map(a => a.text),
-                correctAnswerIndex: correctAnswerIdx,
+                answers: q.answers, // Already shuffled by server
                 timeLimit: payload.game?.time_limit_seconds || 30,
               })
             }
           } else if (payload.state === 'question_revealed') {
             setIsRevealed(true)
+            // Server sends correct answer index
+            if (payload.correctAnswerIndex !== undefined) {
+              setQuestion(prev => prev ? { ...prev, correctAnswerIndex: payload.correctAnswerIndex } : null)
+            }
           } else if (payload.state === 'round_scores' || payload.state === 'game_complete') {
             // Load team scores
             getGameScores(game.id).then(({ scores }) => {

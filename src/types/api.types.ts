@@ -242,7 +242,7 @@ export type JoinTeamResponse = z.infer<typeof JoinTeamResponseSchema>
 
 // POST /api/player/games/:id/questions/:questionId/answers - Submit Answer
 export const SubmitAnswerRequestSchema = z.object({
-  selected_answer: z.enum(['a', 'b', 'c', 'd']),
+  selected_answer_index: z.number().int().min(0).max(3), // SECURITY: Submit index (0-3), not letter
   answer_time_ms: z.number().int().min(0),
 })
 

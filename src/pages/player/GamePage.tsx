@@ -1,7 +1,7 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
-import { getGame, getCurrentQuestion, submitAnswer, type GameState } from '@/lib/services/game-service'
+import { getGame, getCurrentQuestion, submitAnswer, getGameScores, type GameState } from '@/lib/services/game-service'
 import { getMyTeam } from '@/lib/services/team-service'
 import { subscribeToGameEvents } from '@/lib/realtime/channels'
 import { answersFromQuestion, shuffleAnswers } from '@/lib/game/answer-shuffling'
@@ -24,9 +24,8 @@ interface QuestionData {
   gameQuestionId: string
   category: string
   question: string
-  answers: string[]
-  answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' }
-  correctAnswer: string // The text of the correct answer
+  answers: string[] // Pre-shuffled by server
+  correctAnswerIndex?: number // Only set when answer is revealed
   timeLimit: number
 }
 
@@ -46,6 +45,7 @@ export default function GamePage() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [teamScores, setTeamScores] = useState<Array<{ teamId: string; teamName: string; score: number; cumulativeTime: number }>>([])
 
   // Load game data
   useEffect(() => {
@@ -80,35 +80,18 @@ export default function GamePage() {
         }
         setTeam(teamData as Team)
 
-        // Load current question
-        const { question: questionData, error: questionError } = await getCurrentQuestion(gameId)
-        if (questionData) {
-          const gameQuestion = questionData as any
-          const q = gameQuestion.question
-
-          // Shuffle answers using seed for consistent ordering across all clients
-          const answerObjects = answersFromQuestion(q, 'a')
-          const shuffledAnswers = shuffleAnswers(answerObjects, gameQuestion.randomization_seed)
-
-          // Create map from answer text to database key (a/b/c/d)
-          const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
-          shuffledAnswers.forEach(ans => {
-            answersMap[ans.text] = ans.letter
-          })
-
-          const correctAnswerText = shuffledAnswers.find(a => a.is_correct)?.text || ''
-
-          setQuestion({
-            id: q.id,
-            gameQuestionId: gameQuestion.id,
-            category: q.category,
-            question: q.question,
-            answers: shuffledAnswers.map(a => a.text),
-            answersMap,
-            correctAnswer: correctAnswerText,
-            timeLimit: gameData.time_limit_seconds,
-          })
+        // Load scores if game is in score display state
+        if (gameData.game_state === 'round_scores' || gameData.game_state === 'game_complete') {
+          const { scores } = await getGameScores(gameId)
+          if (scores) {
+            setTeamScores(scores)
+          }
         }
+
+        // SECURITY: Players should NOT load questions directly from database
+        // They should wait for broadcast from host
+        // This initial load is only for re-joining mid-game
+        // For now, skip loading question - it will come via broadcast
 
         setLoading(false)
       } catch (err) {
@@ -159,34 +142,34 @@ export default function GamePage() {
               setTimeRemaining(payload.game.time_limit_seconds)
             }
 
-            if (payload.question && payload.randomizationSeed) {
+            if (payload.question && payload.gameQuestionId) {
               const q = payload.question
 
-              // Shuffle answers using seed for consistent ordering across all clients
-              const answerObjects = answersFromQuestion(q, 'a')
-              const shuffledAnswers = shuffleAnswers(answerObjects, payload.randomizationSeed)
-
-              // Create map from answer text to database key (a/b/c/d)
-              const answersMap: { [key: string]: 'a' | 'b' | 'c' | 'd' } = {}
-              shuffledAnswers.forEach(ans => {
-                answersMap[ans.text] = ans.letter
-              })
-
-              const correctAnswerText = shuffledAnswers.find(a => a.is_correct)?.text || ''
-
+              // SECURITY: Server sends pre-shuffled answers only (no letters, no correct flag)
               setQuestion({
                 id: q.id,
                 gameQuestionId: payload.gameQuestionId,
                 category: q.category,
                 question: q.question,
-                answers: shuffledAnswers.map(a => a.text),
-                answersMap,
-                correctAnswer: correctAnswerText,
+                answers: q.answers, // Already shuffled by server
                 timeLimit: payload.game?.time_limit_seconds || 30,
               })
             }
           } else if (payload.state === 'question_revealed') {
             setIsRevealed(true)
+            // Server sends correct answer index (0-3)
+            if (payload.correctAnswerIndex !== undefined) {
+              setQuestion(prev => prev ? { ...prev, correctAnswerIndex: payload.correctAnswerIndex } : null)
+            }
+          } else if (payload.state === 'round_scores' || payload.state === 'game_complete') {
+            // Fetch team scores for display
+            getGameScores(gameId).then(({ scores }) => {
+              if (scores) {
+                setTeamScores(scores)
+              }
+            }).catch(err => {
+              console.error('Failed to load scores:', err)
+            })
           } else if (payload.state === 'game_thanks') {
             // Navigate to results page
             navigate(`/player/results?gameId=${gameId}`)
@@ -210,7 +193,7 @@ export default function GamePage() {
     }
   }, [timeRemaining, isAnswered, isRevealed])
 
-  const handleAnswerSelect = async (answer: string) => {
+  const handleAnswerSelect = async (answer: string, index: number) => {
     if (isAnswered || isRevealed || !question || !team || !game) return
 
     // Only allow answering in question_active state
@@ -221,17 +204,15 @@ export default function GamePage() {
     setIsAnswered(true)
 
     try {
-      // Map answer text to database key (a/b/c/d)
-      const selectedAnswerKey = question.answersMap[answer]
-
       // Calculate time taken using high-resolution timestamp
       const answerTimeMs = questionStartTime > 0 ? Date.now() - questionStartTime : 0
 
-      // Submit answer
+      // SECURITY: Submit answer INDEX (0-3), not letter
+      // Server will validate against shuffle seed to determine correctness
       const { error: submitError } = await submitAnswer({
         gameQuestionId: question.gameQuestionId,
         teamId: team.id,
-        selectedAnswer: selectedAnswerKey,
+        selectedAnswerIndex: index,
         answerTimeMs,
       })
 
@@ -264,16 +245,16 @@ export default function GamePage() {
     return 'outline'
   }
 
-  const getAnswerButtonClassName = (answer: string) => {
+  const getAnswerButtonClassName = (answer: string, index: number) => {
     if (!isRevealed || !question) return ''
 
     // Show correct answer in green with dark text for contrast
-    if (answer === question.correctAnswer) {
+    if (index === question.correctAnswerIndex) {
       return 'bg-green-100 border-green-500 hover:bg-green-100 text-green-900'
     }
 
     // Show selected incorrect answer in red with dark text for contrast
-    if (answer === selectedAnswer && answer !== question.correctAnswer) {
+    if (answer === selectedAnswer && index !== question.correctAnswerIndex) {
       return 'bg-red-100 border-red-500 hover:bg-red-100 text-red-900'
     }
 
@@ -288,58 +269,46 @@ export default function GamePage() {
     )
   }
 
-  if (error || !game || !team || !question) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="destructive">
-              <AlertDescription>{error || 'Failed to load game'}</AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  const gameState = (game.game_state || 'setup') as GameState
-  const totalQuestions = game.num_rounds * game.questions_per_round
-  const currentRound = Math.floor(game.current_question_index / game.questions_per_round) + 1
-  const questionNumber = game.current_question_index + 1
+  // Check game state early - some states don't require question data
+  const gameState = (game?.game_state || 'setup') as GameState
+  const totalQuestions = game ? game.num_rounds * game.questions_per_round : 0
+  const currentRound = game ? Math.floor(game.current_question_index / game.questions_per_round) + 1 : 1
+  const questionNumber = game ? game.current_question_index + 1 : 1
 
   // Render full-screen state components (same screens as host sees)
-  if (gameState === 'game_intro') {
+  if (game && gameState === 'game_intro') {
     return <GameIntroScreen game={game} />
   }
 
-  if (gameState === 'round_intro') {
+  if (game && gameState === 'round_intro') {
     return <RoundIntroScreen game={game} roundNumber={currentRound} />
   }
 
-  if (gameState === 'round_scores' || gameState === 'game_complete') {
+  if (game && gameState === 'round_scores') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <Card className="w-full max-w-3xl">
-          <CardContent className="pt-6 text-center">
-            <p className="text-lg text-muted-foreground">
-              {gameState === 'round_scores' ? 'Round complete! Scores being displayed...' : 'Game over! Final scores being displayed...'}
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">Waiting for host to continue</p>
-          </CardContent>
-        </Card>
-      </div>
+      <RoundScoresScreen
+        game={game}
+        roundNumber={currentRound}
+        teams={teamScores}
+      />
     )
   }
 
-  if (gameState === 'game_thanks') {
+  if (game && gameState === 'game_complete') {
+    return (
+      <GameCompleteScreen
+        game={game}
+        teams={teamScores}
+      />
+    )
+  }
+
+  if (game && gameState === 'game_thanks') {
     return <GameThanksScreen game={game} />
   }
 
   // Show waiting screen for setup state
-  if (gameState === 'setup') {
+  if (game && team && gameState === 'setup') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="w-full max-w-3xl">
@@ -351,6 +320,24 @@ export default function GamePage() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-muted-foreground">The host will start the game shortly...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Error check for states that require question data
+  if (error || !game || !team || !question) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertDescription>{error || 'Failed to load game'}</AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
       </div>
@@ -405,20 +392,20 @@ export default function GamePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {question.answers.map((answer) => (
+            {question.answers.map((answer, index) => (
               <Button
-                key={answer}
-                onClick={() => handleAnswerSelect(answer)}
+                key={index}
+                onClick={() => handleAnswerSelect(answer, index)}
                 variant={getAnswerButtonVariant(answer)}
-                className={`w-full h-auto py-4 text-lg justify-start ${getAnswerButtonClassName(answer)}`}
+                className={`w-full h-auto py-4 text-lg justify-start ${getAnswerButtonClassName(answer, index)}`}
                 disabled={isAnswered || isRevealed || timeRemaining === 0}
               >
                 <span className="flex items-center gap-2 w-full">
                   <span className="flex-1 text-left">{answer}</span>
-                  {isRevealed && answer === question.correctAnswer && (
+                  {isRevealed && index === question.correctAnswerIndex && (
                     <span className="text-green-600 font-bold">✓ Correct</span>
                   )}
-                  {isRevealed && answer === selectedAnswer && answer !== question.correctAnswer && (
+                  {isRevealed && answer === selectedAnswer && index !== question.correctAnswerIndex && (
                     <span className="text-red-600 font-bold">✗</span>
                   )}
                 </span>
