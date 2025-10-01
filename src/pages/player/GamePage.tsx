@@ -43,6 +43,7 @@ export default function GamePage() {
   const [isAnswered, setIsAnswered] = useState(false)
   const [isRevealed, setIsRevealed] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(30)
+  const [questionStartTime, setQuestionStartTime] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -66,6 +67,9 @@ export default function GamePage() {
         // Check initial game state for revealed status
         if (gameData.game_state === 'question_revealed') {
           setIsRevealed(true)
+        } else if (gameData.game_state === 'question_active') {
+          // If joining mid-question, set start time to now
+          setQuestionStartTime(Date.now())
         }
 
         // Load team
@@ -149,6 +153,7 @@ export default function GamePage() {
             setIsAnswered(false)
             setSelectedAnswer(null)
             setIsRevealed(false)
+            setQuestionStartTime(Date.now())
 
             if (payload.game) {
               setTimeRemaining(payload.game.time_limit_seconds)
@@ -219,8 +224,8 @@ export default function GamePage() {
       // Map answer text to database key (a/b/c/d)
       const selectedAnswerKey = question.answersMap[answer]
 
-      // Calculate time taken (time limit - remaining time)
-      const answerTimeMs = (game.time_limit_seconds - timeRemaining) * 1000
+      // Calculate time taken using high-resolution timestamp
+      const answerTimeMs = questionStartTime > 0 ? Date.now() - questionStartTime : 0
 
       // Submit answer
       const { error: submitError } = await submitAnswer({
