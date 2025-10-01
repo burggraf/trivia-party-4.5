@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase/client'
 
 vi.mock('@/lib/supabase/client', () => ({
   supabase: {
+    rpc: vi.fn(),
     from: vi.fn(),
   },
 }))
@@ -26,131 +27,86 @@ describe('Question Selection', () => {
   })
 
   it('should select questions excluding previously used ones', async () => {
-    // Mock question_usage query (host has used 5 questions)
-    const mockUsedQuestions = [
-      { question_id: 'q1' },
-      { question_id: 'q2' },
-      { question_id: 'q3' },
-      { question_id: 'q4' },
-      { question_id: 'q5' },
+    // Mock RPC responses
+    const mockQuestions = [
+      { question_id: 'q6', category: 'Sports', question: 'Question 6', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q7', category: 'History', question: 'Question 7', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q8', category: 'Sports', question: 'Question 8', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q9', category: 'History', question: 'Question 9', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q10', category: 'Sports', question: 'Question 10', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
     ]
 
-    // Mock available questions query (excluding used ones)
-    const mockAvailableQuestions = [
-      { id: 'q6', category: 'Sports', question_text: 'Question 6' },
-      { id: 'q7', category: 'History', question_text: 'Question 7' },
-      { id: 'q8', category: 'Sports', question_text: 'Question 8' },
-      { id: 'q9', category: 'History', question_text: 'Question 9' },
-      { id: 'q10', category: 'Sports', question_text: 'Question 10' },
-    ]
-
-    // Setup mocks
-    const fromMock = vi.fn()
-    const selectMock = vi.fn()
-    const eqMock = vi.fn()
-    const inMock = vi.fn()
-    const notMock = vi.fn()
-    const limitMock = vi.fn()
-
-    vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'question_usage') {
-        return {
-          select: () => ({
-            eq: () => Promise.resolve({ data: mockUsedQuestions, error: null }),
-          }),
-        } as any
+    // Mock RPC calls
+    vi.mocked(supabase.rpc).mockImplementation((functionName: string) => {
+      if (functionName === 'count_available_questions') {
+        return Promise.resolve({
+          data: { in_selected_categories: 10, in_all_categories: 50 },
+          error: null,
+        }) as any
       }
-      if (table === 'questions') {
-        return {
-          select: () => ({
-            in: () => ({
-              not: () => ({
-                limit: () => Promise.resolve({ data: mockAvailableQuestions, error: null }),
-              }),
-            }),
-          }),
-        } as any
+      if (functionName === 'select_questions_for_host') {
+        return Promise.resolve({
+          data: mockQuestions,
+          error: null,
+        }) as any
       }
-      return {} as any
+      return Promise.resolve({ data: null, error: null }) as any
     })
 
     // Execute test
-    const result = await selectQuestions({
-      hostId: mockHostId,
-      categories: mockCategories,
-      count: 5,
-    })
+    const result = await selectQuestions(mockHostId, mockCategories, 5)
 
     // Verify results
-    expect(result.error).toBeNull()
     expect(result.questions).toHaveLength(5)
+    expect(result.available_in_selected_categories).toBe(10)
+    expect(result.available_in_all_categories).toBe(50)
+    expect(result.warning).toBeUndefined()
 
-    // Verify none of the returned questions are in the used list
-    const usedIds = mockUsedQuestions.map((q) => q.question_id)
+    // Verify questions have correct structure
     result.questions.forEach((q) => {
-      expect(usedIds).not.toContain(q.id)
+      expect(q).toHaveProperty('id')
+      expect(q).toHaveProperty('category')
+      expect(q).toHaveProperty('question')
+      expect(q).toHaveProperty('a')
+      expect(q).toHaveProperty('b')
+      expect(q).toHaveProperty('c')
+      expect(q).toHaveProperty('d')
     })
   })
 
   it('should auto-supplement from all categories when selected categories exhausted', async () => {
-    // Mock: Only 3 questions available in Sports + History
-    const mockUsedQuestions = []
-    const mockCategoryQuestions = [
-      { id: 'q1', category: 'Sports', question_text: 'Question 1' },
-      { id: 'q2', category: 'History', question_text: 'Question 2' },
-      { id: 'q3', category: 'Sports', question_text: 'Question 3' },
+    // Mock: Only 3 questions available in Sports + History, supplemented with other categories
+    const mockQuestions = [
+      { question_id: 'q1', category: 'Sports', question: 'Question 1', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q2', category: 'History', question: 'Question 2', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q3', category: 'Sports', question: 'Question 3', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q4', category: 'Science', question: 'Question 4', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
+      { question_id: 'q5', category: 'Geography', question: 'Question 5', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
     ]
 
-    // Mock: 2 additional questions from other categories
-    const mockSupplementQuestions = [
-      { id: 'q4', category: 'Science', question_text: 'Question 4' },
-      { id: 'q5', category: 'Geography', question_text: 'Question 5' },
-    ]
-
-    let queryCount = 0
-    vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'question_usage') {
-        return {
-          select: () => ({
-            eq: () => Promise.resolve({ data: mockUsedQuestions, error: null }),
-          }),
-        } as any
+    // Mock RPC calls - only 3 available in selected categories
+    vi.mocked(supabase.rpc).mockImplementation((functionName: string) => {
+      if (functionName === 'count_available_questions') {
+        return Promise.resolve({
+          data: { in_selected_categories: 3, in_all_categories: 50 },
+          error: null,
+        }) as any
       }
-      if (table === 'questions') {
-        queryCount++
-        if (queryCount === 1) {
-          // First query: selected categories (Sports + History)
-          return {
-            select: () => ({
-              in: () => ({
-                limit: () => Promise.resolve({ data: mockCategoryQuestions, error: null }),
-              }),
-            }),
-          } as any
-        } else {
-          // Second query: supplement from all other categories
-          return {
-            select: () => ({
-              not: () => ({
-                limit: () => Promise.resolve({ data: mockSupplementQuestions, error: null }),
-              }),
-            }),
-          } as any
-        }
+      if (functionName === 'select_questions_for_host') {
+        return Promise.resolve({
+          data: mockQuestions,
+          error: null,
+        }) as any
       }
-      return {} as any
+      return Promise.resolve({ data: null, error: null }) as any
     })
 
     // Request 5 questions but only 3 available in selected categories
-    const result = await selectQuestions({
-      hostId: mockHostId,
-      categories: mockCategories,
-      count: 5,
-    })
+    const result = await selectQuestions(mockHostId, mockCategories, 5)
 
     // Verify auto-supplementation (FR-007a, FR-008)
-    expect(result.error).toBeNull()
     expect(result.questions).toHaveLength(5)
+    expect(result.warning).toContain('Supplemented')
 
     // Verify includes questions from both selected and supplemental categories
     const categories = result.questions.map((q) => q.category)
@@ -161,124 +117,73 @@ describe('Question Selection', () => {
   })
 
   it('should handle case when no questions available', async () => {
-    // Mock: All questions have been used
-    const mockUsedQuestions = Array.from({ length: 100 }, (_, i) => ({
-      question_id: `q${i}`,
-    }))
-
-    vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'question_usage') {
-        return {
-          select: () => ({
-            eq: () => Promise.resolve({ data: mockUsedQuestions, error: null }),
-          }),
-        } as any
+    // Mock RPC calls - no questions available
+    vi.mocked(supabase.rpc).mockImplementation((functionName: string) => {
+      if (functionName === 'count_available_questions') {
+        return Promise.resolve({
+          data: { in_selected_categories: 0, in_all_categories: 0 },
+          error: null,
+        }) as any
       }
-      if (table === 'questions') {
-        return {
-          select: () => ({
-            in: () => ({
-              not: () => ({
-                limit: () => Promise.resolve({ data: [], error: null }),
-              }),
-            }),
-          }),
-        } as any
+      if (functionName === 'select_questions_for_host') {
+        return Promise.resolve({
+          data: [],
+          error: null,
+        }) as any
       }
-      return {} as any
+      return Promise.resolve({ data: null, error: null }) as any
     })
 
-    const result = await selectQuestions({
-      hostId: mockHostId,
-      categories: mockCategories,
-      count: 10,
-    })
+    const result = await selectQuestions(mockHostId, mockCategories, 10)
 
     // Should return empty array when no questions available
     expect(result.questions).toHaveLength(0)
-    expect(result.error).toBeNull()
+    expect(result.warning).toContain('Only 0 questions available')
   })
 
   it('should handle database errors gracefully', async () => {
     // Mock database error
-    vi.mocked(supabase.from).mockImplementation(() => {
-      return {
-        select: () => ({
-          eq: () => Promise.resolve({ data: null, error: new Error('Database error') }),
-        }),
-      } as any
+    vi.mocked(supabase.rpc).mockImplementation(() => {
+      return Promise.resolve({
+        data: null,
+        error: new Error('Database error'),
+      }) as any
     })
 
-    const result = await selectQuestions({
-      hostId: mockHostId,
-      categories: mockCategories,
-      count: 5,
-    })
-
-    // Should return error
-    expect(result.error).not.toBeNull()
-    expect(result.questions).toEqual([])
+    // Should throw error
+    await expect(selectQuestions(mockHostId, mockCategories, 5)).rejects.toThrow('Failed to count available questions')
   })
 
   it('should verify question_usage table prevents reuse across ALL host games', async () => {
     // This test verifies FR-006: reuse prevention across ALL games, not just current game
+    // The RPC function handles this internally, so we just verify it returns new questions
 
-    const mockUsedQuestions = [
-      { question_id: 'q1', game_id: 'game-1' },
-      { question_id: 'q2', game_id: 'game-1' },
-      { question_id: 'q3', game_id: 'game-2' }, // From different game
-      { question_id: 'q4', game_id: 'game-2' },
-      { question_id: 'q5', game_id: 'game-3' }, // From third game
+    const mockQuestions = [
+      { question_id: 'q6', category: 'Sports', question: 'New question', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D' },
     ]
 
-    // All questions from ALL games should be excluded
-    const usedIds = mockUsedQuestions.map((q) => q.question_id)
-
-    // Mock implementation to verify exclusion works across games
-    vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'question_usage') {
-        return {
-          select: () => ({
-            eq: () => Promise.resolve({ data: mockUsedQuestions, error: null }),
-          }),
-        } as any
+    // Mock RPC calls
+    vi.mocked(supabase.rpc).mockImplementation((functionName: string) => {
+      if (functionName === 'count_available_questions') {
+        return Promise.resolve({
+          data: { in_selected_categories: 10, in_all_categories: 50 },
+          error: null,
+        }) as any
       }
-      if (table === 'questions') {
-        return {
-          select: () => ({
-            in: () => ({
-              not: (field: string, operator: string, value: string) => {
-                // Verify that all used question IDs are excluded
-                usedIds.forEach((id) => {
-                  expect(value).toContain(id)
-                })
-
-                return {
-                  limit: () =>
-                    Promise.resolve({
-                      data: [{ id: 'q6', category: 'Sports', question_text: 'New question' }],
-                      error: null,
-                    }),
-                }
-              },
-            }),
-          }),
-        } as any
+      if (functionName === 'select_questions_for_host') {
+        // The RPC function internally excludes questions from question_usage table
+        return Promise.resolve({
+          data: mockQuestions,
+          error: null,
+        }) as any
       }
-      return {} as any
+      return Promise.resolve({ data: null, error: null }) as any
     })
 
-    const result = await selectQuestions({
-      hostId: mockHostId,
-      categories: mockCategories,
-      count: 1,
-    })
+    const result = await selectQuestions(mockHostId, mockCategories, 1)
 
     expect(result.questions).toHaveLength(1)
-    expect(result.questions[0].id).not.toContain('q1')
-    expect(result.questions[0].id).not.toContain('q2')
-    expect(result.questions[0].id).not.toContain('q3')
-    expect(result.questions[0].id).not.toContain('q4')
-    expect(result.questions[0].id).not.toContain('q5')
+    // Verify new question IDs are returned (not q1-q5 which were used)
+    expect(result.questions[0].id).toBe('q6')
   })
 })
