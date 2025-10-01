@@ -10,7 +10,7 @@
 import { supabase } from '@/lib/supabase/client'
 import { selectQuestions, recordQuestionUsage } from '@/lib/game/question-selection'
 import { generateGameCode } from '@/lib/utils/game-code'
-import { createGameChannel, broadcastGameEvent } from '@/lib/realtime/channels'
+import { createGameChannel, broadcastGameEvent, createTVChannel } from '@/lib/realtime/channels'
 import { answersFromQuestion, shuffleAnswers } from '@/lib/game/answer-shuffling'
 import type { CreateGameRequest, CreateGameResponse } from '@/types/api.types'
 import type { Database } from '@/types/database.types'
@@ -909,6 +909,39 @@ export async function submitAnswer(
         isCorrect: false,
         error: new Error('Failed to submit answer'),
       }
+    }
+
+    // Broadcast answer count update to TV display
+    try {
+      const gameId = gameQuestion.game_id
+
+      // Get total teams in this game
+      const { count: totalTeams } = await supabase
+        .from('teams')
+        .select('id', { count: 'exact', head: true })
+        .eq('game_id', gameId)
+
+      // Get count of teams that have answered this question
+      const { count: teamsAnsweredCount } = await supabase
+        .from('answer_submissions')
+        .select('team_id', { count: 'exact', head: true })
+        .eq('game_question_id', request.gameQuestionId)
+
+      // Broadcast to TV channel
+      const tvChannel = createTVChannel(gameId)
+      await tvChannel.subscribe()
+      await tvChannel.send({
+        type: 'broadcast',
+        event: 'answer_count_updated',
+        payload: {
+          teams_answered_count: teamsAnsweredCount || 0,
+          total_teams: totalTeams || 0,
+        },
+      })
+      await tvChannel.unsubscribe()
+    } catch (broadcastError) {
+      // Don't fail the submission if broadcast fails
+      console.error('Failed to broadcast answer count update:', broadcastError)
     }
 
     // Update team score if answer is correct
