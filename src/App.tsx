@@ -7,6 +7,7 @@ import HostRegisterPage from './pages/host/HostRegisterPage'
 import HostForgotPasswordPage from './pages/host/HostForgotPasswordPage'
 import HostDashboardPage from './pages/host/HostDashboardPage'
 import GameCreatePage from './pages/host/games/GameCreatePage'
+import GameEditPage from './pages/host/games/GameEditPage'
 import GameControlPage from './pages/host/games/GameControlPage'
 import GameScoresPage from './pages/host/games/GameScoresPage'
 import PlayerLoginPage from './pages/player/PlayerLoginPage'
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/host/forgot-password" element={<HostForgotPasswordPage />} />
       <Route path="/host/dashboard" element={<HostDashboardPage />} />
       <Route path="/host/games/create" element={<GameCreatePage />} />
+      <Route path="/host/games/:gameId/edit" element={<GameEditPage />} />
       <Route path="/host/games/:gameId/control" element={<GameControlPage />} />
       <Route path="/host/games/:gameId/scores" element={<GameScoresPage />} />
       <Route path="/player/login" element={<PlayerLoginPage />} />

@@ -921,6 +921,140 @@ export async function submitAnswer(
 }
 
 // ============================================================================
+// Question Recycling
+// ============================================================================
+
+export interface RecycleQuestionResult {
+  gameQuestion: any | null
+  newQuestion: any | null
+  error: Error | null
+}
+
+/**
+ * Replace a question in a game with a new one from the same category
+ * Maintains reuse prevention by updating question_usage table
+ */
+export async function recycleQuestion(
+  gameId: string,
+  gameQuestionId: string
+): Promise<RecycleQuestionResult> {
+  try {
+    // Get current user (must be host)
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return {
+        gameQuestion: null,
+        newQuestion: null,
+        error: new Error('You must be logged in as a host'),
+      }
+    }
+
+    // Get the current game question with its question details
+    const { data: gameQuestion, error: gqError } = await supabase
+      .from('game_questions')
+      .select(`
+        *,
+        question:questions (
+          id,
+          category,
+          question,
+          a,
+          b,
+          c,
+          d
+        )
+      `)
+      .eq('id', gameQuestionId)
+      .eq('game_id', gameId)
+      .single()
+
+    if (gqError || !gameQuestion) {
+      return {
+        gameQuestion: null,
+        newQuestion: null,
+        error: new Error('Question not found'),
+      }
+    }
+
+    const oldQuestionId = gameQuestion.question_id
+    const category = (gameQuestion.question as any).category
+
+    // Select a new question from the same category (excluding used questions)
+    const questionResult = await selectQuestions(user.id, [category], 1)
+
+    if (questionResult.questions.length === 0) {
+      return {
+        gameQuestion: null,
+        newQuestion: null,
+        error: new Error(`No more unused questions available in category: ${category}`),
+      }
+    }
+
+    const newQuestion = questionResult.questions[0]
+
+    // Update game_questions with new question (keep same seed for consistency)
+    const { data: updatedGameQuestion, error: updateError } = await supabase
+      .from('game_questions')
+      .update({ question_id: newQuestion.id })
+      .eq('id', gameQuestionId)
+      .select(`
+        *,
+        question:questions (
+          id,
+          category,
+          question,
+          a,
+          b,
+          c,
+          d
+        )
+      `)
+      .single()
+
+    if (updateError || !updatedGameQuestion) {
+      return {
+        gameQuestion: null,
+        newQuestion: null,
+        error: new Error('Failed to update question'),
+      }
+    }
+
+    // Update question_usage: remove old question, add new question
+    // Remove old question from usage
+    const { error: deleteUsageError } = await supabase
+      .from('question_usage')
+      .delete()
+      .eq('host_id', user.id)
+      .eq('question_id', oldQuestionId)
+      .eq('game_id', gameId)
+
+    if (deleteUsageError) {
+      console.error('Failed to remove old question from usage:', deleteUsageError)
+    }
+
+    // Add new question to usage
+    await recordQuestionUsage(user.id, gameId, [newQuestion.id])
+
+    return {
+      gameQuestion: updatedGameQuestion,
+      newQuestion: updatedGameQuestion.question,
+      error: null,
+    }
+  } catch (error) {
+    console.error('Unexpected error in recycleQuestion:', error)
+    return {
+      gameQuestion: null,
+      newQuestion: null,
+      error: error as Error,
+    }
+  }
+}
+
+// ============================================================================
 // Game Scores (FR-076)
 // ============================================================================
 

@@ -98,9 +98,9 @@ export default function GameCreatePage() {
         return
       }
 
-      // Navigate to the created game
+      // Navigate to the edit page to review/edit questions
       if (result.game) {
-        navigate(`/host/games/${result.game.id}/control`)
+        navigate(`/host/games/${result.game.id}/edit`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create game')

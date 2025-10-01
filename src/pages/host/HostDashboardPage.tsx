@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Edit } from 'lucide-react'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 
 type Game = Database['public']['Tables']['games']['Row']
@@ -198,8 +198,15 @@ export default function HostDashboardPage() {
 
                         <div className="flex gap-2">
                           {game.status === 'setup' && (
-                            <Button asChild variant="secondary">
-                              <Link to={`/host/games/${game.id}/setup`}>Continue Setup</Link>
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="icon"
+                              title="Edit questions"
+                            >
+                              <Link to={`/host/games/${game.id}/edit`}>
+                                <Edit className="h-4 w-4" />
+                              </Link>
                             </Button>
                           )}
                           {game.status === 'active' && (
