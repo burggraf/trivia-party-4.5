@@ -1,5 +1,6 @@
 .mcp.json
 
+
 # build
 /dist
 
@@ -22,6 +23,7 @@ test-results/
 .env.development.local
 .env.test.local
 .env.production.local
+.env*
 
 # IDE
 .vscode/
